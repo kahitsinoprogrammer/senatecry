@@ -150,7 +150,8 @@ export default function App() {
   const gameOverMusicRef = useRef(null);
   const wipeSfxRef = useRef([]);
   const missedCryRef = useRef([]);
-  const gameOverSfxRef = useRef([]);
+  const gameOverSfxTemplateRef = useRef(null);
+  const activeGameOverSfxRef = useRef([]);
   const soundOnRef = useRef(false);
   const stageRef = useRef(null);
   const floodSceneRef = useRef(null);
@@ -230,21 +231,18 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const pool = Array.from({ length: 2 }, () => {
-      const audio = new Audio(gameOverSfx);
+    const audio = new Audio(gameOverSfx);
 
-      audio.preload = "auto";
-      audio.volume = 0.6;
-      return audio;
-    });
-
-    gameOverSfxRef.current = pool;
+    audio.preload = "auto";
+    audio.volume = 0.6;
+    gameOverSfxTemplateRef.current = audio;
 
     return () => {
-      pool.forEach((audio) => {
+      activeGameOverSfxRef.current.forEach((audio) => {
         audio.pause();
       });
-      gameOverSfxRef.current = [];
+      activeGameOverSfxRef.current = [];
+      gameOverSfxTemplateRef.current = null;
     };
   }, []);
 
@@ -438,7 +436,7 @@ export default function App() {
     const allSounds = [
       ...(wipeSfxRef.current ?? []),
       ...(missedCryRef.current ?? []),
-      ...(gameOverSfxRef.current ?? []),
+      ...(gameOverSfxTemplateRef.current ? [gameOverSfxTemplateRef.current] : []),
       welcomeMusicRef.current,
       gameOverMusicRef.current,
     ].filter(Boolean);
@@ -470,7 +468,22 @@ export default function App() {
   }
 
   function playGameOverSound() {
-    playFromPool(gameOverSfxRef);
+    if (!soundOnRef.current || !gameOverSfxTemplateRef.current) {
+      return;
+    }
+
+    const oneShot = gameOverSfxTemplateRef.current.cloneNode(true);
+
+    oneShot.volume = 0.6;
+    oneShot.currentTime = 0;
+    activeGameOverSfxRef.current.push(oneShot);
+    oneShot.play().catch(() => {});
+
+    oneShot.onended = () => {
+      activeGameOverSfxRef.current = activeGameOverSfxRef.current.filter(
+        (audio) => audio !== oneShot,
+      );
+    };
   }
 
   function toggleSound() {
