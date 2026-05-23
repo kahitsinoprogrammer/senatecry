@@ -1,9 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
-import cryingCharacter from './assets/crying-character.png';
-import distressedCharacter from './assets/crying-character-distressed.png';
-import gameOverCharacter from './assets/crying-character-gameover.png';
-import floodCrowd from './assets/flood-crowd.png';
-import handkerchiefCursor from './assets/handkerchief-kumusta-ka.png';
+import { useEffect, useRef, useState } from "react";
+import cryingCharacter from "./assets/crying-character.png";
+import distressedCharacter from "./assets/crying-character-distressed.png";
+import gameOverCharacter from "./assets/crying-character-gameover.png";
+import floodCrowd from "./assets/flood-crowd.png";
+import handkerchiefCursor from "./assets/handkerchief-kumusta-ka.png";
+import tearDropImage from "./assets/tear-drop.png";
+import welcomeMusic from "./assets/welcome-music.mp3";
+import wipeDropSfx from "./assets/wipe-drop.mp3";
+import missedCrySfx from "./assets/missed-cry.mp3";
+import gameOverSfx from "./assets/game-over.mp3";
 
 const BUCKET_LIMIT = 8;
 const BUCKET_HEIGHT = 136;
@@ -11,31 +16,32 @@ const BUCKET_BOTTOM_OFFSET = 0;
 const WIPE_RADIUS = 34;
 const TEAR_SOURCES = [0.12, 0.26, 0.4, 0.6, 0.74, 0.88];
 const CHARACTER_DIALOGUE = [
-  'Takot na takot po ako!',
-  'Napakarami nang nangyare!',
-  'Wala ho akong sinisisi!',
-  'Walang ni isa sa inyong nangumusta sa amin',
-  'HUHUHU...',
-  'Some of you I know for 20 years',
+  "Takot na takot po ako!",
+  "Napakarami nang nangyare!",
+  "Wala ho akong sinisisi!",
+  "Walang ni isa sa inyong nangumusta sa amin",
+  "HUHUHU...",
+  "Some of you I know for 20 years",
   "I didn't hear any of you!",
 ];
 
 const initialGame = {
-  status: 'idle',
+  status: "idle",
   elapsedMs: 0,
   totalTimeMs: 0,
   bucketDrops: 0,
   wipedTears: 0,
   spawnMs: 900,
   fallSpeed: 220,
-  feedback: 'Swipe or hover over the falling tears before they turn the bottom of the stage into a flood.',
+  feedback:
+    "Swipe or hover over the falling tears before they turn the bottom of the stage into a flood.",
 };
 
 function formatTime(ms) {
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
 function getSpawnMs(elapsedMs) {
@@ -55,10 +61,13 @@ function randomBetween(min, max) {
 }
 
 function createTear(id, stageWidth, elapsedMs, source = null, laneOffset = 0) {
-  const sourceRatio = source ?? TEAR_SOURCES[Math.floor(Math.random() * TEAR_SOURCES.length)];
+  const sourceRatio =
+    source ?? TEAR_SOURCES[Math.floor(Math.random() * TEAR_SOURCES.length)];
   const size = randomBetween(18, 28);
   const x = clamp(
-    stageWidth * sourceRatio + laneOffset * 18 + randomBetween(-stageWidth * 0.04, stageWidth * 0.04),
+    stageWidth * sourceRatio +
+      laneOffset * 18 +
+      randomBetween(-stageWidth * 0.04, stageWidth * 0.04),
     size,
     stageWidth - size,
   );
@@ -85,44 +94,65 @@ function createSpawnBatch(stageWidth, elapsedMs, nextTearIdRef) {
 
   const tripleChance = Math.min(0.08 + elapsedMs / 140_000, 0.2);
   const count = Math.random() < tripleChance ? 3 : 2;
-  const startIndex = Math.floor(Math.random() * (TEAR_SOURCES.length - count + 1));
+  const startIndex = Math.floor(
+    Math.random() * (TEAR_SOURCES.length - count + 1),
+  );
 
-  return TEAR_SOURCES.slice(startIndex, startIndex + count).map((source, index) => {
-    const tear = createTear(
-      nextTearIdRef.current,
-      stageWidth,
-      elapsedMs,
-      source,
-      index - (count - 1) / 2,
-    );
+  return TEAR_SOURCES.slice(startIndex, startIndex + count).map(
+    (source, index) => {
+      const tear = createTear(
+        nextTearIdRef.current,
+        stageWidth,
+        elapsedMs,
+        source,
+        index - (count - 1) / 2,
+      );
 
-    nextTearIdRef.current += 1;
-    return tear;
-  });
+      nextTearIdRef.current += 1;
+      return tear;
+    },
+  );
 }
 
 function getCharacterMood(status, bucketDrops) {
-  if (status === 'gameover') {
-    return 'gameover';
+  if (status === "gameover") {
+    return "gameover";
   }
 
   if (bucketDrops >= 5) {
-    return 'warning';
+    return "warning";
   }
 
-  return 'crying';
+  return "crying";
+}
+
+function getInitialStageHeight() {
+  if (typeof window === "undefined") {
+    return 560;
+  }
+
+  return window.innerWidth <= 760 ? 660 : 560;
 }
 
 export default function App() {
   const [game, setGame] = useState(initialGame);
   const [tears, setTears] = useState([]);
+  const [soundOn, setSoundOn] = useState(false);
   const [wipeCursor, setWipeCursor] = useState({
     x: 0,
     y: 0,
     active: false,
   });
 
+  const audioContextRef = useRef(null);
+  const masterGainRef = useRef(null);
+  const welcomeMusicRef = useRef(null);
+  const wipeSfxRef = useRef(null);
+  const missedCryRef = useRef(null);
+  const gameOverSfxRef = useRef(null);
+  const soundOnRef = useRef(false);
   const stageRef = useRef(null);
+  const floodSceneRef = useRef(null);
   const animationRef = useRef(0);
   const runStartedAtRef = useRef(0);
   const lastFrameAtRef = useRef(0);
@@ -133,14 +163,89 @@ export default function App() {
   const wipedTearsRef = useRef(0);
   const statusRef = useRef(initialGame.status);
   const stageSizeRef = useRef({
-    width: 560,
-    height: 420,
+    width: 360,
+    height: getInitialStageHeight(),
+    floodHeight: BUCKET_HEIGHT,
   });
   const pointerRef = useRef({
     x: 0,
     y: 0,
     active: false,
   });
+
+  useEffect(() => {
+    soundOnRef.current = soundOn;
+  }, [soundOn]);
+
+  useEffect(() => {
+    const audio = new Audio(welcomeMusic);
+
+    audio.loop = true;
+    audio.volume = 0.36;
+    welcomeMusicRef.current = audio;
+
+    return () => {
+      audio.pause();
+      welcomeMusicRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const audio = new Audio(wipeDropSfx);
+
+    audio.preload = "auto";
+    audio.volume = 0.5;
+    wipeSfxRef.current = audio;
+
+    return () => {
+      audio.pause();
+      wipeSfxRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const audio = new Audio(missedCrySfx);
+
+    audio.preload = "auto";
+    audio.volume = 0.45;
+    missedCryRef.current = audio;
+
+    return () => {
+      audio.pause();
+      missedCryRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const audio = new Audio(gameOverSfx);
+
+    audio.preload = "auto";
+    audio.volume = 0.6;
+    gameOverSfxRef.current = audio;
+
+    return () => {
+      audio.pause();
+      gameOverSfxRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const audio = welcomeMusicRef.current;
+
+    if (!audio) {
+      return;
+    }
+
+    if (soundOn && game.status === "idle") {
+      audio.play().catch(() => {
+        setSoundOn(false);
+      });
+      return;
+    }
+
+    audio.pause();
+    audio.currentTime = 0;
+  }, [soundOn, game.status]);
 
   useEffect(() => {
     function measureStage() {
@@ -151,34 +256,220 @@ export default function App() {
       stageSizeRef.current = {
         width: stageRef.current.clientWidth,
         height: stageRef.current.clientHeight,
+        floodHeight: floodSceneRef.current?.clientHeight ?? BUCKET_HEIGHT,
       };
     }
 
     measureStage();
-    window.addEventListener('resize', measureStage);
+    window.addEventListener("resize", measureStage);
 
     return () => {
-      window.removeEventListener('resize', measureStage);
+      window.removeEventListener("resize", measureStage);
       window.cancelAnimationFrame(animationRef.current);
     };
   }, []);
 
+  function getAudioNodes() {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+
+    if (!AudioContext) {
+      return null;
+    }
+
+    if (!audioContextRef.current) {
+      const audioContext = new AudioContext();
+      const masterGain = audioContext.createGain();
+
+      masterGain.gain.value = 0.42;
+      masterGain.connect(audioContext.destination);
+      audioContextRef.current = audioContext;
+      masterGainRef.current = masterGain;
+    }
+
+    if (audioContextRef.current.state === "suspended") {
+      audioContextRef.current.resume();
+    }
+
+    return {
+      audioContext: audioContextRef.current,
+      masterGain: masterGainRef.current,
+    };
+  }
+
+  function playTone({ frequency, duration, type = "sine", volume = 0.12, bendTo = null }) {
+    if (!soundOnRef.current) {
+      return;
+    }
+
+    const nodes = getAudioNodes();
+
+    if (!nodes) {
+      return;
+    }
+
+    const { audioContext, masterGain } = nodes;
+    const now = audioContext.currentTime;
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(frequency, now);
+
+    if (bendTo) {
+      oscillator.frequency.exponentialRampToValueAtTime(bendTo, now + duration);
+    }
+
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(volume, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+    oscillator.connect(gain);
+    gain.connect(masterGain);
+    oscillator.start(now);
+    oscillator.stop(now + duration + 0.04);
+  }
+
+  function playNoise({ duration, volume = 0.08 }) {
+    if (!soundOnRef.current) {
+      return;
+    }
+
+    const nodes = getAudioNodes();
+
+    if (!nodes) {
+      return;
+    }
+
+    const { audioContext, masterGain } = nodes;
+    const bufferSize = Math.max(1, Math.floor(audioContext.sampleRate * duration));
+    const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+    const channel = buffer.getChannelData(0);
+
+    for (let index = 0; index < bufferSize; index += 1) {
+      channel[index] = (Math.random() * 2 - 1) * (1 - index / bufferSize);
+    }
+
+    const source = audioContext.createBufferSource();
+    const filter = audioContext.createBiquadFilter();
+    const gain = audioContext.createGain();
+    const now = audioContext.currentTime;
+
+    source.buffer = buffer;
+    filter.type = "bandpass";
+    filter.frequency.value = 1150;
+    filter.Q.value = 1.4;
+    gain.gain.setValueAtTime(volume, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(masterGain);
+    source.start(now);
+  }
+
+  function playWipeSound() {
+    if (!soundOnRef.current) {
+      return;
+    }
+
+    const wipeSound = wipeSfxRef.current;
+
+    if (!wipeSound) {
+      return;
+    }
+
+    wipeSound.currentTime = 0;
+    wipeSound.play().catch(() => {});
+  }
+
+  function playCrySound() {
+    if (!soundOnRef.current) {
+      return;
+    }
+
+    const crySound = missedCryRef.current;
+
+    if (!crySound) {
+      return;
+    }
+
+    crySound.currentTime = 0;
+    crySound.play().catch(() => {});
+  }
+
+  function playGameOverSound() {
+    if (!soundOnRef.current) {
+      return;
+    }
+
+    const gameOverSound = gameOverSfxRef.current;
+
+    if (!gameOverSound) {
+      return;
+    }
+
+    gameOverSound.currentTime = 0;
+    gameOverSound.play().catch(() => {});
+  }
+
+  function toggleSound() {
+    setSoundOn((current) => {
+      const next = !current;
+
+      soundOnRef.current = next;
+
+      if (next) {
+        getAudioNodes();
+
+        if (statusRef.current === "gameover") {
+          playGameOverSound();
+        } else if (statusRef.current === "idle" && welcomeMusicRef.current) {
+          welcomeMusicRef.current.currentTime = 0;
+          welcomeMusicRef.current.play().catch(() => {});
+        }
+      } else if (welcomeMusicRef.current) {
+        welcomeMusicRef.current.pause();
+        welcomeMusicRef.current.currentTime = 0;
+      }
+
+      return next;
+    });
+  }
+
+  const soundButton = (
+    <button
+      type="button"
+      className={`sound-toggle ${soundOn ? "is-on" : ""}`}
+      onClick={toggleSound}
+      aria-pressed={soundOn}
+      aria-label={soundOn ? "Turn sound off" : "Turn sound on"}
+    >
+      <span className="sound-toggle-icon">{soundOn ? "ON" : "OFF"}</span>
+      <span>Sound</span>
+    </button>
+  );
+
   function endGame(finalElapsedMs, bucketDrops) {
-    statusRef.current = 'gameover';
+    statusRef.current = "gameover";
     window.cancelAnimationFrame(animationRef.current);
+    playGameOverSound();
 
     setGame((current) => ({
       ...current,
-      status: 'gameover',
+      status: "gameover",
       elapsedMs: finalElapsedMs,
       totalTimeMs: finalElapsedMs,
       bucketDrops: Math.min(bucketDrops, BUCKET_LIMIT),
-      feedback: 'The tear flood swallowed the people. Game over.',
+      feedback: "The tear flood swallowed the people. Game over.",
     }));
   }
 
   function frame(now) {
-    if (statusRef.current !== 'playing') {
+    if (statusRef.current !== "playing") {
       return;
     }
 
@@ -189,7 +480,8 @@ export default function App() {
     const fallSpeed = getFallSpeed(elapsedMs);
     const stageWidth = stageSizeRef.current.width;
     const stageHeight = stageSizeRef.current.height;
-    const bucketTop = stageHeight - BUCKET_BOTTOM_OFFSET - BUCKET_HEIGHT + 10;
+    const floodHeight = stageSizeRef.current.floodHeight ?? BUCKET_HEIGHT;
+    const bucketTop = stageHeight - BUCKET_BOTTOM_OFFSET - floodHeight;
 
     lastFrameAtRef.current = now;
 
@@ -198,7 +490,11 @@ export default function App() {
 
     let nextTears = tearsRef.current.map((tear) => ({
       ...tear,
-      x: clamp(tear.x + tear.drift * deltaSeconds, tear.size * 0.6, stageWidth - tear.size * 0.6),
+      x: clamp(
+        tear.x + tear.drift * deltaSeconds,
+        tear.size * 0.6,
+        stageWidth - tear.size * 0.6,
+      ),
       y: tear.y + tear.speed * deltaSeconds,
     }));
 
@@ -229,10 +525,15 @@ export default function App() {
 
     if (wipedThisFrame > 0) {
       wipedTearsRef.current += wipedThisFrame;
+      playWipeSound();
     }
 
     if (bucketHitsThisFrame > 0) {
-      bucketDropsRef.current = Math.min(BUCKET_LIMIT, bucketDropsRef.current + bucketHitsThisFrame);
+      bucketDropsRef.current = Math.min(
+        BUCKET_LIMIT,
+        bucketDropsRef.current + bucketHitsThisFrame,
+      );
+      playCrySound();
     }
 
     while (now - lastSpawnAtRef.current >= spawnMs) {
@@ -257,9 +558,9 @@ export default function App() {
       fallSpeed,
       feedback:
         bucketHitsThisFrame > 0
-          ? `A tear joined the flood. ${BUCKET_LIMIT - bucketDropsRef.current} slot${BUCKET_LIMIT - bucketDropsRef.current === 1 ? '' : 's'} left.`
+          ? `A tear joined the flood. ${BUCKET_LIMIT - bucketDropsRef.current} slot${BUCKET_LIMIT - bucketDropsRef.current === 1 ? "" : "s"} left.`
           : wipedThisFrame > 0
-            ? 'Nice wipe. Keep clearing the flow before the flood rises.'
+            ? "Nice wipe. Keep clearing the flow before the flood rises."
             : current.feedback,
     }));
 
@@ -267,10 +568,15 @@ export default function App() {
   }
 
   function startGame() {
+    if (soundOnRef.current) {
+      getAudioNodes();
+    }
+
     if (stageRef.current) {
       stageSizeRef.current = {
         width: stageRef.current.clientWidth,
         height: stageRef.current.clientHeight,
+        floodHeight: floodSceneRef.current?.clientHeight ?? BUCKET_HEIGHT,
       };
     }
 
@@ -285,7 +591,7 @@ export default function App() {
     tearsRef.current = [];
     bucketDropsRef.current = 0;
     wipedTearsRef.current = 0;
-    statusRef.current = 'playing';
+    statusRef.current = "playing";
     pointerRef.current = {
       x: 0,
       y: 0,
@@ -299,14 +605,15 @@ export default function App() {
     });
     setTears([]);
     setGame({
-      status: 'playing',
+      status: "playing",
       elapsedMs: 0,
       totalTimeMs: 0,
       bucketDrops: 0,
       wipedTears: 0,
       spawnMs: getSpawnMs(0),
       fallSpeed: getFallSpeed(0),
-      feedback: 'Swipe or hover over each falling tear before it reaches the flood line. Some waves drop in parallel.',
+      feedback:
+        "Swipe or hover over each falling tear before it reaches the flood line. Some waves drop in parallel.",
     });
 
     animationRef.current = window.requestAnimationFrame(frame);
@@ -335,7 +642,7 @@ export default function App() {
   }
 
   function handlePointerDown(event) {
-    if (event.pointerType !== 'mouse') {
+    if (event.pointerType !== "mouse") {
       event.preventDefault();
     }
 
@@ -344,7 +651,7 @@ export default function App() {
   }
 
   function handlePointerMove(event) {
-    if (event.pointerType !== 'mouse') {
+    if (event.pointerType !== "mouse") {
       event.preventDefault();
     }
 
@@ -367,37 +674,54 @@ export default function App() {
     }));
   }
 
-  const liveTotalMs = game.status === 'gameover' ? game.totalTimeMs : game.elapsedMs;
-  const bucketRatio = (Math.min(game.bucketDrops, BUCKET_LIMIT) / BUCKET_LIMIT) * 100;
+  const liveTotalMs =
+    game.status === "gameover" ? game.totalTimeMs : game.elapsedMs;
+  const bucketRatio =
+    (Math.min(game.bucketDrops, BUCKET_LIMIT) / BUCKET_LIMIT) * 100;
   const currentMood = getCharacterMood(game.status, game.bucketDrops);
   const showDistressedFace = game.bucketDrops >= 3;
-  const portraitSource = showDistressedFace ? distressedCharacter : cryingCharacter;
+  const portraitSource = showDistressedFace
+    ? distressedCharacter
+    : cryingCharacter;
   const speech =
     game.bucketDrops > 0
-      ? CHARACTER_DIALOGUE[Math.min(game.bucketDrops - 1, CHARACTER_DIALOGUE.length - 1)]
-      : 'Wipe the tears before they drop!';
+      ? CHARACTER_DIALOGUE[
+          Math.min(game.bucketDrops - 1, CHARACTER_DIALOGUE.length - 1)
+        ]
+      : "We are under attack!";
 
-  if (game.status === 'idle') {
+  if (game.status === "idle") {
     return (
       <main className="intro-shell">
+        {soundButton}
         <div className="ambient ambient-one" />
         <div className="ambient ambient-two" />
 
         <section className="intro-panel">
           <div className="intro-copy">
+            <h1 className="intro-title">Iyak! </h1>
             <p className="eyebrow">How To Play</p>
-            <h1 className="intro-title">Hover To Wipe</h1>
-            <p className="intro-lead">
-              Swipe or hover the handkerchief over every falling tear before the flood rises.
+            <p className="intro-lead" style={{ marginTop: -25 }}>
+              Swipe or hover the handkerchief over every falling tear before the
+              flood rises.
             </p>
 
             <div className="intro-rules">
               <p>Wipe tears before they reach the people below.</p>
-              <p>Each missed tear adds to the flood. At `8 / 8`, the run is over.</p>
-              <p>Some waves fall in parallel, and the flow speeds up as time passes.</p>
+              <p>
+                Each missed tear adds to the flood. At `8 / 8`, the run is over.
+              </p>
+              <p>
+                Some waves fall in parallel, and the flow speeds up as time
+                passes.
+              </p>
             </div>
 
-            <button type="button" className="start-button intro-button" onClick={startGame}>
+            <button
+              type="button"
+              className="start-button intro-button"
+              onClick={startGame}
+            >
               <span>PLAY</span>
             </button>
           </div>
@@ -411,22 +735,17 @@ export default function App() {
               />
             </div>
 
-            <div className="intro-handkerchief-card">
-              <img
-                className="intro-handkerchief-image"
-                src={handkerchiefCursor}
-                alt="Pixel-art handkerchief"
-              />
-            </div>
+          
           </div>
         </section>
       </main>
     );
   }
 
-  if (game.status === 'gameover') {
+  if (game.status === "gameover") {
     return (
       <main className="gameover-shell">
+        {soundButton}
         <div className="gameover-glow gameover-glow-one" />
         <div className="gameover-glow gameover-glow-two" />
 
@@ -434,7 +753,8 @@ export default function App() {
           <p className="gameover-kicker">Tear Flood Alert</p>
           <h1 className="gameover-title">Game Over</h1>
           <p className="gameover-copy">
-            The flood got away from you. Reset the wipe and try to save the crowd again.
+            The flood got away from you. Reset the wipe and try to save the
+            crowd again.
           </p>
 
           <div className="gameover-portrait-wrap">
@@ -458,7 +778,9 @@ export default function App() {
             </article>
             <article className="gameover-stat">
               <span className="gameover-stat-label">Time Survived</span>
-              <strong className="gameover-stat-value">{formatTime(game.totalTimeMs)}</strong>
+              <strong className="gameover-stat-value">
+                {formatTime(game.totalTimeMs)}
+              </strong>
             </article>
           </div>
         </section>
@@ -468,20 +790,25 @@ export default function App() {
 
   return (
     <main className="app-shell">
+      {soundButton}
       <div className="ambient ambient-one" />
       <div className="ambient ambient-two" />
 
       <section className="layout-shell game-layout-shell">
         <div className="layout-grid game-layout-grid">
           <aside className={`sidebar-panel game-sidebar mood-${currentMood}`}>
-            <div className="speech-bubble">{speech}</div>
+            <div className="character-dialogue-wrap">
+              <div className="speech-bubble">{speech}</div>
 
-            <div className={`portrait-card game-portrait-card ${showDistressedFace ? 'is-distressed' : ''}`}>
-              <img
-                className="character-image"
-                src={portraitSource}
-                alt="Pixel-art crying character"
-              />
+              <div
+                className={`portrait-card game-portrait-card ${showDistressedFace ? "is-distressed" : ""}`}
+              >
+                <img
+                  className="character-image"
+                  src={portraitSource}
+                  alt="Pixel-art crying character"
+                />
+              </div>
             </div>
           </aside>
 
@@ -498,15 +825,15 @@ export default function App() {
               >
                 <div className="stage-hud">
                   <span className="stage-chip">
-                    Flood {Math.min(game.bucketDrops, BUCKET_LIMIT)} / {BUCKET_LIMIT}
+                    Flood {Math.min(game.bucketDrops, BUCKET_LIMIT)} /{" "}
+                    {BUCKET_LIMIT}
                   </span>
-                  <span className="stage-chip">Survival {formatTime(liveTotalMs)}</span>
+                  <span className="stage-chip">
+                    Survival {formatTime(liveTotalMs)}
+                  </span>
                 </div>
 
-                <div className="tear-stream-guide" aria-hidden="true" />
-                <div className="tear-stream-guide guide-two" aria-hidden="true" />
-                <div className="tear-stream-guide guide-three" aria-hidden="true" />
-                <div className="tear-stream-guide guide-four" aria-hidden="true" />
+   
 
                 {tears.map((tear) => (
                   <div
@@ -519,7 +846,9 @@ export default function App() {
                       width: `${tear.size}px`,
                       height: `${tear.size * 1.3}px`,
                     }}
-                  />
+                  >
+                    <img className="tear-drop-image" src={tearDropImage} alt="" />
+                  </div>
                 ))}
 
                 {wipeCursor.active ? (
@@ -531,14 +860,30 @@ export default function App() {
                       top: `${wipeCursor.y}px`,
                     }}
                   >
-                    <img className="wipe-cursor-image" src={handkerchiefCursor} alt="" />
+                    <img
+                      className="wipe-cursor-image"
+                      src={handkerchiefCursor}
+                      alt=""
+                    />
                   </div>
                 ) : null}
 
                 <div className="bucket-wrap" aria-hidden="true">
-                  <div className="flood-scene">
-                    <img className="flood-crowd-image" src={floodCrowd} alt="" />
-                    <div className="bucket-fill flood-water" style={{ height: `${bucketRatio}%` }}>
+                  <div ref={floodSceneRef} className="flood-scene">
+                    <img
+                      className="flood-crowd-image"
+                      src={floodCrowd}
+                      alt=""
+                    />
+                    <div
+                      className="bucket-fill flood-water"
+                      style={{
+                        height: game.bucketDrops > 0 ? `${bucketRatio}%` : 0,
+                      }}
+                    >
+                      <span className="flood-wave wave-one" />
+                      <span className="flood-wave wave-two" />
+                      <span className="flood-wave wave-three" />
                     </div>
                   </div>
                 </div>
