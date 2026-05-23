@@ -2,6 +2,6 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  base: '/senatecry/',
+  base: process.env.GITHUB_ACTIONS ? '/senatecry/' : '/',
   plugins: [react()],
 });
