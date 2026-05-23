@@ -6,7 +6,7 @@ import floodCrowd from './assets/flood-crowd.png';
 import handkerchiefCursor from './assets/handkerchief-kumusta-ka.png';
 
 const BUCKET_LIMIT = 8;
-const BUCKET_HEIGHT = 176;
+const BUCKET_HEIGHT = 136;
 const BUCKET_BOTTOM_OFFSET = 0;
 const WIPE_RADIUS = 34;
 const TEAR_SOURCES = [0.12, 0.26, 0.4, 0.6, 0.74, 0.88];
@@ -377,6 +377,53 @@ export default function App() {
       ? CHARACTER_DIALOGUE[Math.min(game.bucketDrops - 1, CHARACTER_DIALOGUE.length - 1)]
       : 'Wipe the tears before they drop!';
 
+  if (game.status === 'idle') {
+    return (
+      <main className="intro-shell">
+        <div className="ambient ambient-one" />
+        <div className="ambient ambient-two" />
+
+        <section className="intro-panel">
+          <div className="intro-copy">
+            <p className="eyebrow">How To Play</p>
+            <h1 className="intro-title">Hover To Wipe</h1>
+            <p className="intro-lead">
+              Swipe or hover the handkerchief over every falling tear before the flood rises.
+            </p>
+
+            <div className="intro-rules">
+              <p>Wipe tears before they reach the people below.</p>
+              <p>Each missed tear adds to the flood. At `8 / 8`, the run is over.</p>
+              <p>Some waves fall in parallel, and the flow speeds up as time passes.</p>
+            </div>
+
+            <button type="button" className="start-button intro-button" onClick={startGame}>
+              <span>PLAY</span>
+            </button>
+          </div>
+
+          <div className="intro-visual">
+            <div className="intro-portrait-card">
+              <img
+                className="character-image intro-character-image"
+                src={cryingCharacter}
+                alt="Pixel-art crying character"
+              />
+            </div>
+
+            <div className="intro-handkerchief-card">
+              <img
+                className="intro-handkerchief-image"
+                src={handkerchiefCursor}
+                alt="Pixel-art handkerchief"
+              />
+            </div>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   if (game.status === 'gameover') {
     return (
       <main className="gameover-shell">
@@ -424,65 +471,22 @@ export default function App() {
       <div className="ambient ambient-one" />
       <div className="ambient ambient-two" />
 
-      <section className="layout-shell">
-
-
-        <div className="layout-grid">
-          <aside className={`sidebar-panel mood-${currentMood}`}>
+      <section className="layout-shell game-layout-shell">
+        <div className="layout-grid game-layout-grid">
+          <aside className={`sidebar-panel game-sidebar mood-${currentMood}`}>
             <div className="speech-bubble">{speech}</div>
 
-            <div className={`portrait-card ${showDistressedFace ? 'is-distressed' : ''}`}>
+            <div className={`portrait-card game-portrait-card ${showDistressedFace ? 'is-distressed' : ''}`}>
               <img
                 className="character-image"
                 src={portraitSource}
                 alt="Pixel-art crying character"
               />
             </div>
-
-            <button type="button" className="start-button" onClick={startGame}>
-              <span>
-                {game.status === 'playing'
-                  ? 'ON GAME'
-                  : game.status === 'gameover'
-                    ? 'PLAY AGAIN'
-                    : 'PLAY'}
-              </span>
-            </button>
-
-            <div className="status-grid">
-              <article className="stat-box">
-                <span className="stat-label">Wiped</span>
-                <strong className="stat-value">{game.wipedTears}</strong>
-              </article>
-              <article className="stat-box">
-                <span className="stat-label">Flood</span>
-                <strong className="stat-value">
-                  {Math.min(game.bucketDrops, BUCKET_LIMIT)} / {BUCKET_LIMIT}
-                </strong>
-              </article>
-              <article className="stat-box">
-                <span className="stat-label">Survival</span>
-                <strong className="stat-value">{formatTime(liveTotalMs)}</strong>
-              </article>
-            </div>
-
-            <p className="feedback-card">{game.feedback}</p>
           </aside>
 
-          <section className="stage-panel">
-            <div className="stage-topline">
-              <span className="stage-chip">
-                Mood:{' '}
-                {currentMood === 'warning'
-                  ? 'Flooding'
-                  : currentMood === 'gameover'
-                    ? 'Overflow'
-                    : 'Crying'}
-              </span>
-              <span className="stage-chip">Flow {Math.round(game.fallSpeed)} px/s</span>
-            </div>
-
-            <div className="stage-frame">
+          <section className="stage-panel game-stage-panel">
+            <div className="stage-frame game-stage-frame">
               <div
                 ref={stageRef}
                 className="tear-stage"
@@ -492,6 +496,13 @@ export default function App() {
                 onPointerLeave={handlePointerEnd}
                 onPointerCancel={handlePointerEnd}
               >
+                <div className="stage-hud">
+                  <span className="stage-chip">
+                    Flood {Math.min(game.bucketDrops, BUCKET_LIMIT)} / {BUCKET_LIMIT}
+                  </span>
+                  <span className="stage-chip">Survival {formatTime(liveTotalMs)}</span>
+                </div>
+
                 <div className="tear-stream-guide" aria-hidden="true" />
                 <div className="tear-stream-guide guide-two" aria-hidden="true" />
                 <div className="tear-stream-guide guide-three" aria-hidden="true" />
@@ -528,17 +539,9 @@ export default function App() {
                   <div className="flood-scene">
                     <img className="flood-crowd-image" src={floodCrowd} alt="" />
                     <div className="bucket-fill flood-water" style={{ height: `${bucketRatio}%` }}>
-                     
                     </div>
                   </div>
                 </div>
-              </div>
-
-              <div className="stage-bottomline">
-                <span className="bucket-note">
-                  Flood {Math.min(game.bucketDrops, BUCKET_LIMIT)} / {BUCKET_LIMIT}
-                </span>
-                <span className="bucket-note">Spawn {(game.spawnMs / 1_000).toFixed(2)}s</span>
               </div>
             </div>
           </section>

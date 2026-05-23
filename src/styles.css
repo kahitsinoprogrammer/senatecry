@@ -52,6 +52,127 @@ button {
   padding: clamp(12px, 2vw, 24px);
 }
 
+.intro-shell {
+  position: relative;
+  min-height: 100dvh;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  padding: clamp(16px, 3vw, 28px);
+}
+
+.intro-panel {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 1120px);
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+  gap: clamp(20px, 4vw, 40px);
+  align-items: center;
+  padding: clamp(24px, 4vw, 40px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 36px;
+  background:
+    linear-gradient(180deg, rgba(255, 249, 241, 0.94), rgba(240, 250, 255, 0.82)),
+    radial-gradient(circle at top right, rgba(255, 214, 180, 0.28), rgba(255, 214, 180, 0));
+  box-shadow:
+    0 30px 64px rgba(83, 56, 46, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(10px);
+}
+
+.intro-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.intro-title {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(3rem, 7vw, 5.4rem);
+  line-height: 0.9;
+}
+
+.intro-lead {
+  max-width: 36rem;
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.55;
+}
+
+.intro-rules {
+  display: grid;
+  gap: 10px;
+}
+
+.intro-rules p {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.64);
+  background:
+    linear-gradient(180deg, rgba(255, 252, 248, 0.94), rgba(248, 252, 255, 0.9));
+  box-shadow:
+    0 12px 24px rgba(84, 58, 45, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88);
+  color: var(--ink);
+  font-size: 0.96rem;
+  line-height: 1.45;
+}
+
+.intro-button {
+  width: fit-content;
+  min-width: min(100%, 240px);
+  margin-top: 8px;
+  padding-inline: 28px;
+}
+
+.intro-visual {
+  display: grid;
+  gap: 18px;
+  justify-items: center;
+}
+
+.intro-portrait-card,
+.intro-handkerchief-card {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  box-shadow:
+    0 20px 38px rgba(75, 50, 41, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
+.intro-portrait-card {
+  padding: 18px;
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0)),
+    linear-gradient(180deg, rgba(255, 246, 237, 0.86), rgba(248, 252, 255, 0.74));
+}
+
+.intro-character-image {
+  width: min(100%, 360px);
+}
+
+.intro-handkerchief-card {
+  padding: 14px 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 252, 246, 0.92), rgba(244, 250, 255, 0.78));
+}
+
+.intro-handkerchief-image {
+  display: block;
+  width: min(100%, 240px);
+  height: auto;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 12px 18px rgba(78, 50, 40, 0.12));
+}
+
 .app-shell::before,
 .app-shell::after {
   content: "";
@@ -285,6 +406,13 @@ button {
   gap: clamp(12px, 2vh, 22px);
 }
 
+.game-layout-shell {
+  max-width: 1360px;
+  height: 100%;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
 .hero-banner {
   grid-column: 2;
   width: fit-content;
@@ -336,6 +464,12 @@ button {
   min-height: 0;
 }
 
+.game-layout-grid {
+  height: 100%;
+  grid-template-columns: minmax(190px, 220px) minmax(0, 1fr);
+  gap: clamp(12px, 1.7vw, 20px);
+}
+
 .sidebar-panel {
   display: flex;
   flex-direction: column;
@@ -351,6 +485,17 @@ button {
     0 20px 42px rgba(95, 64, 51, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(8px);
+}
+
+.game-sidebar {
+  gap: 18px;
+  justify-content: flex-start;
+  padding: 16px 12px;
+}
+
+.game-portrait-card {
+  flex: 1;
+  align-items: flex-end;
 }
 
 .speech-bubble {
@@ -510,6 +655,10 @@ button {
   backdrop-filter: blur(10px);
 }
 
+.game-stage-panel {
+  padding: 10px;
+}
+
 .stage-topline,
 .stage-bottomline {
   display: flex;
@@ -557,6 +706,11 @@ button {
     inset 0 1px 0 rgba(255, 255, 255, 0.88);
 }
 
+.game-stage-frame {
+  height: 100%;
+  padding: 10px;
+}
+
 .tear-stage {
   position: relative;
   height: clamp(320px, 58dvh, 460px);
@@ -594,6 +748,19 @@ button {
   height: 34%;
   background:
     linear-gradient(180deg, rgba(173, 224, 255, 0), rgba(173, 224, 255, 0.18) 48%, rgba(134, 206, 255, 0.3) 100%);
+  pointer-events: none;
+}
+
+.stage-hud {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  right: 14px;
+  z-index: 4;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
   pointer-events: none;
 }
 
@@ -675,7 +842,7 @@ button {
 .flood-scene {
   position: relative;
   width: 100%;
-  height: clamp(108px, 19dvh, 150px);
+  height: clamp(84px, 14dvh, 118px);
   overflow: hidden;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(210, 237, 255, 0.12) 25%, rgba(118, 195, 247, 0.24) 100%);
@@ -799,6 +966,24 @@ button {
 }
 
 @media (max-width: 1040px) {
+  .intro-panel {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .intro-copy {
+    align-items: center;
+  }
+
+  .intro-lead {
+    max-width: 42rem;
+  }
+
+  .intro-rules {
+    width: 100%;
+  }
+
   .layout-shell {
     grid-template-columns: 1fr;
   }
@@ -812,6 +997,27 @@ button {
   .layout-grid {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .game-layout-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .game-sidebar {
+    display: grid;
+    grid-template-columns: minmax(150px, 180px) minmax(0, 1fr);
+    gap: 12px 16px;
+    align-items: center;
+  }
+
+  .game-sidebar .speech-bubble {
+    align-self: start;
+  }
+
+  .game-portrait-card {
+    flex: none;
+    min-height: 0;
   }
 
   .sidebar-panel {
@@ -847,11 +1053,31 @@ button {
     grid-area: feedback;
     align-self: stretch;
   }
+
+  .sidebar-panel.game-sidebar {
+    display: grid;
+    grid-template-columns: minmax(150px, 180px) minmax(0, 1fr);
+    gap: 12px 16px;
+    align-items: center;
+  }
 }
 
 @media (max-width: 760px) {
   .app-shell {
     padding: 12px;
+  }
+
+  .intro-panel {
+    padding: 22px 18px 24px;
+  }
+
+  .intro-title {
+    font-size: clamp(2.4rem, 12vw, 3.8rem);
+  }
+
+  .intro-lead,
+  .intro-rules p {
+    font-size: 0.92rem;
   }
 
   .gameover-panel {
@@ -882,11 +1108,37 @@ button {
   }
 
   .flood-scene {
-    height: clamp(88px, 16dvh, 120px);
+    height: clamp(76px, 13dvh, 104px);
+  }
+
+  .game-sidebar {
+    grid-template-columns: 132px minmax(0, 1fr);
+    gap: 10px 12px;
   }
 }
 
 @media (max-width: 560px) {
+  .intro-shell {
+    padding: 12px;
+  }
+
+  .intro-panel {
+    gap: 18px;
+    border-radius: 28px;
+  }
+
+  .intro-button {
+    width: 100%;
+  }
+
+  .intro-character-image {
+    width: min(100%, 220px);
+  }
+
+  .intro-handkerchief-image {
+    width: min(100%, 160px);
+  }
+
   .gameover-shell {
     padding: 12px;
   }
@@ -907,6 +1159,16 @@ button {
     width: 100%;
   }
 
+  .game-sidebar {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .game-sidebar .speech-bubble {
+    width: 100%;
+  }
+
   .sidebar-panel {
     grid-template-columns: 132px minmax(0, 1fr);
     grid-template-areas:
@@ -915,6 +1177,13 @@ button {
       "button button"
       "feedback feedback";
     gap: 8px 10px;
+  }
+
+  .sidebar-panel.game-sidebar {
+    grid-template-columns: 1fr;
+    grid-template-areas: none;
+    justify-items: center;
+    text-align: center;
   }
 
   .hero-banner h1 {
@@ -952,7 +1221,7 @@ button {
   }
 
   .flood-scene {
-    height: 122px;
+    height: 96px;
   }
 
   .stage-chip,
