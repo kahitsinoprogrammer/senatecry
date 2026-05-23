@@ -28,7 +28,7 @@ const initialGame = {
   wipedTears: 0,
   spawnMs: 900,
   fallSpeed: 220,
-  feedback: 'Hover over the falling tears before they turn the bottom of the stage into a flood.',
+  feedback: 'Swipe or hover over the falling tears before they turn the bottom of the stage into a flood.',
 };
 
 function formatTime(ms) {
@@ -136,7 +136,7 @@ export default function App() {
     width: 560,
     height: 420,
   });
-  const mouseRef = useRef({
+  const pointerRef = useRef({
     x: 0,
     y: 0,
     active: false,
@@ -202,10 +202,10 @@ export default function App() {
       y: tear.y + tear.speed * deltaSeconds,
     }));
 
-    if (mouseRef.current.active) {
+    if (pointerRef.current.active) {
       nextTears = nextTears.filter((tear) => {
-        const dx = tear.x - mouseRef.current.x;
-        const dy = tear.y - mouseRef.current.y;
+        const dx = tear.x - pointerRef.current.x;
+        const dy = tear.y - pointerRef.current.y;
         const radius = WIPE_RADIUS + tear.size * 0.42;
         const isWiped = dx * dx + dy * dy <= radius * radius;
 
@@ -286,7 +286,7 @@ export default function App() {
     bucketDropsRef.current = 0;
     wipedTearsRef.current = 0;
     statusRef.current = 'playing';
-    mouseRef.current = {
+    pointerRef.current = {
       x: 0,
       y: 0,
       active: false,
@@ -306,37 +306,58 @@ export default function App() {
       wipedTears: 0,
       spawnMs: getSpawnMs(0),
       fallSpeed: getFallSpeed(0),
-      feedback: 'Hover over each falling tear before it reaches the flood line. Some waves drop in parallel.',
+      feedback: 'Swipe or hover over each falling tear before it reaches the flood line. Some waves drop in parallel.',
     });
 
     animationRef.current = window.requestAnimationFrame(frame);
   }
 
-  function handleMouseMove(event) {
+  function syncPointerPosition(clientX, clientY, active = true) {
     if (!stageRef.current) {
       return;
     }
 
     const rect = stageRef.current.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
 
-    mouseRef.current = {
+    pointerRef.current = {
       x,
       y,
-      active: true,
+      active,
     };
 
     setWipeCursor({
       x,
       y,
-      active: true,
+      active,
     });
   }
 
-  function handleMouseLeave() {
-    mouseRef.current = {
-      ...mouseRef.current,
+  function handlePointerDown(event) {
+    if (event.pointerType !== 'mouse') {
+      event.preventDefault();
+    }
+
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    syncPointerPosition(event.clientX, event.clientY, true);
+  }
+
+  function handlePointerMove(event) {
+    if (event.pointerType !== 'mouse') {
+      event.preventDefault();
+    }
+
+    syncPointerPosition(event.clientX, event.clientY, true);
+  }
+
+  function handlePointerEnd(event) {
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    pointerRef.current = {
+      ...pointerRef.current,
       active: false,
     };
 
@@ -465,8 +486,11 @@ export default function App() {
               <div
                 ref={stageRef}
                 className="tear-stage"
-                onMouseMove={handleMouseMove}
-                onMouseLeave={handleMouseLeave}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerEnd}
+                onPointerLeave={handlePointerEnd}
+                onPointerCancel={handlePointerEnd}
               >
                 <div className="tear-stream-guide" aria-hidden="true" />
                 <div className="tear-stream-guide guide-two" aria-hidden="true" />
