@@ -34,7 +34,7 @@ const initialGame = {
   spawnMs: 900,
   fallSpeed: 220,
   feedback:
-    "Swipe or hover over the falling tears before they turn the bottom of the stage into a flood.",
+    "sdfsdf",
 };
 
 function formatTime(ms) {
@@ -131,7 +131,7 @@ function getInitialStageHeight() {
     return 560;
   }
 
-  return window.innerWidth <= 760 ? 660 : 560;
+  return window.innerWidth <= 760 ? 660 : 670;
 }
 
 export default function App() {
@@ -163,7 +163,7 @@ export default function App() {
   const wipedTearsRef = useRef(0);
   const statusRef = useRef(initialGame.status);
   const stageSizeRef = useRef({
-    width: 360,
+    width: 300,
     height: getInitialStageHeight(),
     floodHeight: BUCKET_HEIGHT,
   });
@@ -613,7 +613,7 @@ export default function App() {
       spawnMs: getSpawnMs(0),
       fallSpeed: getFallSpeed(0),
       feedback:
-        "Swipe or hover over each falling tear before it reaches the flood line. Some waves drop in parallel.",
+        "Sen. P’s tears are falling fast! Grab the Kumusta Handkerchief and wipe them away before the drama turns into a flood and our kababayan start swimming for survival.",
     });
 
     animationRef.current = window.requestAnimationFrame(frame);
@@ -702,18 +702,19 @@ export default function App() {
             <h1 className="intro-title">Iyak! </h1>
             <p className="eyebrow">How To Play</p>
             <p className="intro-lead" style={{ marginTop: -25 }}>
-              Swipe or hover the handkerchief over every falling tear before the
-              flood rises.
+              Sen. P’s tears are falling fast! Grab the Kumusta Handkerchief and
+              wipe them away before the drama turns into a flood and our
+              kababayan start swimming for survival.
             </p>
 
             <div className="intro-rules">
-              <p>Wipe tears before they reach the people below.</p>
+              <p>Wipe the tears before they splash the people below.</p>
               <p>
-                Each missed tear adds to the flood. At `8 / 8`, the run is over.
+                Each missed tear adds to the flood. At 8 / 8, everyone is
+                drowned.
               </p>
               <p>
-                Some waves fall in parallel, and the flow speeds up as time
-                passes.
+                Wipe fast! The longer you survive, the faster the tears fall.
               </p>
             </div>
 
@@ -734,8 +735,6 @@ export default function App() {
                 alt="Pixel-art crying character"
               />
             </div>
-
-          
           </div>
         </section>
       </main>
@@ -750,11 +749,10 @@ export default function App() {
         <div className="gameover-glow gameover-glow-two" />
 
         <section className="gameover-panel">
-          <p className="gameover-kicker">Tear Flood Alert</p>
+          <p className="gameover-kicker">Thank you for playing!</p>
           <h1 className="gameover-title">Game Over</h1>
           <p className="gameover-copy">
-            The flood got away from you. Reset the wipe and try to save the
-            crowd again.
+           Hindi n'yo kasi kinumusta!
           </p>
 
           <div className="gameover-portrait-wrap">
@@ -825,7 +823,7 @@ export default function App() {
               >
                 <div className="stage-hud">
                   <span className="stage-chip">
-                    Flood {Math.min(game.bucketDrops, BUCKET_LIMIT)} /{" "}
+                    Tears {Math.min(game.bucketDrops, BUCKET_LIMIT)} /{" "}
                     {BUCKET_LIMIT}
                   </span>
                   <span className="stage-chip">
