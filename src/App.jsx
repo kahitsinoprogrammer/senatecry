@@ -131,7 +131,7 @@ function getInitialStageHeight() {
     return 560;
   }
 
-  return window.innerWidth <= 760 ? 660 : 670;
+  return window.innerWidth <= 760 ? 360 : 670;
 }
 
 export default function App() {
