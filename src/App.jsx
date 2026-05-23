@@ -432,14 +432,15 @@ export default function App() {
     sound.play().catch(() => {});
   }
 
-  function primeAudioOnUnlock() {
-    const allSounds = [
-      ...(wipeSfxRef.current ?? []),
-      ...(missedCryRef.current ?? []),
-      ...(gameOverSfxTemplateRef.current ? [gameOverSfxTemplateRef.current] : []),
-      welcomeMusicRef.current,
-      gameOverMusicRef.current,
-    ].filter(Boolean);
+  function primeAudioOnUnlock(includeGameplay = false) {
+    const allSounds = includeGameplay
+      ? [
+          ...(wipeSfxRef.current ?? []),
+          ...(missedCryRef.current ?? []),
+          ...(gameOverSfxTemplateRef.current ? [gameOverSfxTemplateRef.current] : []),
+          gameOverMusicRef.current,
+        ].filter(Boolean)
+      : [welcomeMusicRef.current].filter(Boolean);
 
     allSounds.forEach((audio) => {
       const previousVolume = audio.volume;
@@ -494,13 +495,15 @@ export default function App() {
 
       if (next) {
         getAudioNodes();
-        primeAudioOnUnlock();
+        if (statusRef.current === "idle" && welcomeMusicRef.current) {
+          welcomeMusicRef.current.currentTime = 0;
+          welcomeMusicRef.current.play().catch(() => {});
+        } else {
+          primeAudioOnUnlock(true);
+        }
 
         if (statusRef.current === "gameover") {
           playGameOverSound();
-        } else if (statusRef.current === "idle" && welcomeMusicRef.current) {
-          welcomeMusicRef.current.currentTime = 0;
-          welcomeMusicRef.current.play().catch(() => {});
         }
       } else {
         if (welcomeMusicRef.current) {
@@ -648,6 +651,7 @@ export default function App() {
   function startGame() {
     if (soundOnRef.current) {
       getAudioNodes();
+      primeAudioOnUnlock(true);
     }
 
     if (stageRef.current) {
