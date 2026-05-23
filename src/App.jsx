@@ -147,9 +147,10 @@ export default function App() {
   const audioContextRef = useRef(null);
   const masterGainRef = useRef(null);
   const welcomeMusicRef = useRef(null);
-  const wipeSfxRef = useRef(null);
-  const missedCryRef = useRef(null);
-  const gameOverSfxRef = useRef(null);
+  const gameOverMusicRef = useRef(null);
+  const wipeSfxRef = useRef([]);
+  const missedCryRef = useRef([]);
+  const gameOverSfxRef = useRef([]);
   const soundOnRef = useRef(false);
   const stageRef = useRef(null);
   const floodSceneRef = useRef(null);
@@ -191,60 +192,105 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const audio = new Audio(wipeDropSfx);
+    const pool = Array.from({ length: 4 }, () => {
+      const audio = new Audio(wipeDropSfx);
 
-    audio.preload = "auto";
-    audio.volume = 0.5;
-    wipeSfxRef.current = audio;
+      audio.preload = "auto";
+      audio.volume = 0.5;
+      return audio;
+    });
+
+    wipeSfxRef.current = pool;
 
     return () => {
-      audio.pause();
-      wipeSfxRef.current = null;
+      pool.forEach((audio) => {
+        audio.pause();
+      });
+      wipeSfxRef.current = [];
     };
   }, []);
 
   useEffect(() => {
-    const audio = new Audio(missedCrySfx);
+    const pool = Array.from({ length: 3 }, () => {
+      const audio = new Audio(missedCrySfx);
 
-    audio.preload = "auto";
-    audio.volume = 0.45;
-    missedCryRef.current = audio;
+      audio.preload = "auto";
+      audio.volume = 0.45;
+      return audio;
+    });
+
+    missedCryRef.current = pool;
 
     return () => {
-      audio.pause();
-      missedCryRef.current = null;
+      pool.forEach((audio) => {
+        audio.pause();
+      });
+      missedCryRef.current = [];
+    };
+  }, []);
+
+  useEffect(() => {
+    const pool = Array.from({ length: 2 }, () => {
+      const audio = new Audio(gameOverSfx);
+
+      audio.preload = "auto";
+      audio.volume = 0.6;
+      return audio;
+    });
+
+    gameOverSfxRef.current = pool;
+
+    return () => {
+      pool.forEach((audio) => {
+        audio.pause();
+      });
+      gameOverSfxRef.current = [];
     };
   }, []);
 
   useEffect(() => {
     const audio = new Audio(gameOverSfx);
 
-    audio.preload = "auto";
-    audio.volume = 0.6;
-    gameOverSfxRef.current = audio;
+    audio.loop = true;
+    audio.volume = 0.42;
+    gameOverMusicRef.current = audio;
 
     return () => {
       audio.pause();
-      gameOverSfxRef.current = null;
+      gameOverMusicRef.current = null;
     };
   }, []);
 
   useEffect(() => {
-    const audio = welcomeMusicRef.current;
+    const welcomeTrack = welcomeMusicRef.current;
+    const gameOverTrack = gameOverMusicRef.current;
 
-    if (!audio) {
+    if (!welcomeTrack || !gameOverTrack) {
       return;
     }
 
     if (soundOn && game.status === "idle") {
-      audio.play().catch(() => {
+      gameOverTrack.pause();
+      gameOverTrack.currentTime = 0;
+      welcomeTrack.play().catch(() => {
         setSoundOn(false);
       });
       return;
     }
 
-    audio.pause();
-    audio.currentTime = 0;
+    if (soundOn && game.status === "gameover") {
+      welcomeTrack.pause();
+      welcomeTrack.currentTime = 0;
+      gameOverTrack.play().catch(() => {
+        setSoundOn(false);
+      });
+      return;
+    }
+
+    welcomeTrack.pause();
+    welcomeTrack.currentTime = 0;
+    gameOverTrack.pause();
+    gameOverTrack.currentTime = 0;
   }, [soundOn, game.status]);
 
   useEffect(() => {
@@ -371,49 +417,60 @@ export default function App() {
     source.start(now);
   }
 
-  function playWipeSound() {
+  function playFromPool(poolRef) {
     if (!soundOnRef.current) {
       return;
     }
 
-    const wipeSound = wipeSfxRef.current;
+    const pool = poolRef.current;
 
-    if (!wipeSound) {
+    if (!pool || pool.length === 0) {
       return;
     }
 
-    wipeSound.currentTime = 0;
-    wipeSound.play().catch(() => {});
+    const sound = pool.find((audio) => audio.paused || audio.ended) ?? pool[0];
+
+    sound.currentTime = 0;
+    sound.play().catch(() => {});
+  }
+
+  function primeAudioOnUnlock() {
+    const allSounds = [
+      ...(wipeSfxRef.current ?? []),
+      ...(missedCryRef.current ?? []),
+      ...(gameOverSfxRef.current ?? []),
+      welcomeMusicRef.current,
+      gameOverMusicRef.current,
+    ].filter(Boolean);
+
+    allSounds.forEach((audio) => {
+      const previousVolume = audio.volume;
+
+      audio.volume = 0;
+      audio.currentTime = 0;
+      audio
+        .play()
+        .then(() => {
+          audio.pause();
+          audio.currentTime = 0;
+          audio.volume = previousVolume;
+        })
+        .catch(() => {
+          audio.volume = previousVolume;
+        });
+    });
+  }
+
+  function playWipeSound() {
+    playFromPool(wipeSfxRef);
   }
 
   function playCrySound() {
-    if (!soundOnRef.current) {
-      return;
-    }
-
-    const crySound = missedCryRef.current;
-
-    if (!crySound) {
-      return;
-    }
-
-    crySound.currentTime = 0;
-    crySound.play().catch(() => {});
+    playFromPool(missedCryRef);
   }
 
   function playGameOverSound() {
-    if (!soundOnRef.current) {
-      return;
-    }
-
-    const gameOverSound = gameOverSfxRef.current;
-
-    if (!gameOverSound) {
-      return;
-    }
-
-    gameOverSound.currentTime = 0;
-    gameOverSound.play().catch(() => {});
+    playFromPool(gameOverSfxRef);
   }
 
   function toggleSound() {
@@ -424,6 +481,7 @@ export default function App() {
 
       if (next) {
         getAudioNodes();
+        primeAudioOnUnlock();
 
         if (statusRef.current === "gameover") {
           playGameOverSound();
@@ -431,9 +489,16 @@ export default function App() {
           welcomeMusicRef.current.currentTime = 0;
           welcomeMusicRef.current.play().catch(() => {});
         }
-      } else if (welcomeMusicRef.current) {
-        welcomeMusicRef.current.pause();
-        welcomeMusicRef.current.currentTime = 0;
+      } else {
+        if (welcomeMusicRef.current) {
+          welcomeMusicRef.current.pause();
+          welcomeMusicRef.current.currentTime = 0;
+        }
+
+        if (gameOverMusicRef.current) {
+          gameOverMusicRef.current.pause();
+          gameOverMusicRef.current.currentTime = 0;
+        }
       }
 
       return next;
