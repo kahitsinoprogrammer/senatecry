@@ -436,9 +436,6 @@ export default function App() {
     const allSounds = includeGameplay
       ? [
           ...(wipeSfxRef.current ?? []),
-          ...(missedCryRef.current ?? []),
-          ...(gameOverSfxTemplateRef.current ? [gameOverSfxTemplateRef.current] : []),
-          gameOverMusicRef.current,
         ].filter(Boolean)
       : [welcomeMusicRef.current].filter(Boolean);
 
