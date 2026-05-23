@@ -49,7 +49,7 @@ function getSpawnMs(elapsedMs) {
 }
 
 function getFallSpeed(elapsedMs) {
-  return 220 + elapsedMs / 140;
+  return 130 + elapsedMs / 260;
 }
 
 function clamp(value, min, max) {
