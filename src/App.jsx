@@ -151,11 +151,7 @@ function getPerformanceMode() {
 }
 
 function shouldShowWipeCursor(performanceMode) {
-  if (typeof window === "undefined") {
-    return true;
-  }
-
-  return !performanceMode && window.matchMedia("(pointer: fine)").matches;
+  return true;
 }
 
 const GameSidebar = memo(function GameSidebar({

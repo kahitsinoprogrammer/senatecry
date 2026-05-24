@@ -1301,6 +1301,12 @@ button {
   animation: none;
 }
 
+.performance-mode .wipe-cursor {
+  width: 76px;
+  height: 76px;
+  transform: translate(-50%, -50%) rotate(-8deg);
+}
+
 .performance-mode .flood-water,
 .performance-mode .flood-wave,
 .performance-mode .flood-scene,
