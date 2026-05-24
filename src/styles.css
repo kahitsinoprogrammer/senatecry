@@ -44,17 +44,31 @@ button {
   font: inherit;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .sound-toggle {
   position: fixed;
   top: clamp(10px, 2vw, 18px);
   right: clamp(10px, 2vw, 18px);
   z-index: 20;
-  display: inline-flex;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
   align-items: center;
-  gap: 8px;
-  padding: 9px 12px;
   border: 1px solid rgba(125, 223, 255, 0.72);
-  border-radius: 999px;
+  border-radius: 50%;
   background:
     linear-gradient(180deg, rgba(35, 32, 82, 0.96), rgba(28, 25, 72, 0.96));
   color: #a9ecff;
@@ -62,22 +76,65 @@ button {
     0 12px 24px rgba(8, 7, 32, 0.42),
     inset 0 1px 0 rgba(173, 239, 255, 0.2);
   cursor: pointer;
-  font-size: 0.72rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease;
+}
+
+.sound-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 16px 28px rgba(8, 7, 32, 0.5),
+    inset 0 1px 0 rgba(173, 239, 255, 0.24);
+}
+
+.sound-toggle:focus-visible {
+  outline: 2px solid rgba(255, 235, 133, 0.92);
+  outline-offset: 3px;
 }
 
 .sound-toggle-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 34px;
-  padding: 4px 6px;
-  border-radius: 999px;
-  background: rgba(108, 240, 255, 0.18);
-  color: #d8fbff;
-  font-size: 0.64rem;
+  width: 20px;
+  height: 20px;
+  overflow: visible;
+}
+
+.sound-toggle-speaker {
+  fill: currentColor;
+}
+
+.sound-toggle-wave,
+.sound-toggle-slash {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.9;
+}
+
+.sound-toggle-wave {
+  stroke: currentColor;
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.sound-toggle-slash {
+  stroke: #ffd2e6;
+  opacity: 1;
+  transition: opacity 140ms ease;
+}
+
+.sound-toggle-status {
+  position: absolute;
+  right: 7px;
+  bottom: 7px;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid rgba(13, 13, 35, 0.82);
+  border-radius: 50%;
+  background: #ff7ba5;
+  box-shadow: 0 0 10px rgba(255, 123, 165, 0.55);
 }
 
 .sound-toggle.is-on {
@@ -86,9 +143,17 @@ button {
     linear-gradient(180deg, rgba(255, 100, 170, 0.9), rgba(205, 41, 117, 0.9));
 }
 
-.sound-toggle.is-on .sound-toggle-icon {
-  background: linear-gradient(180deg, #2a7a52 0%, #124531 100%);
-  color: #fffdf7;
+.sound-toggle.is-on .sound-toggle-wave {
+  opacity: 1;
+}
+
+.sound-toggle.is-on .sound-toggle-slash {
+  opacity: 0;
+}
+
+.sound-toggle.is-on .sound-toggle-status {
+  background: #67e79d;
+  box-shadow: 0 0 10px rgba(103, 231, 157, 0.7);
 }
 
 .app-shell {
@@ -136,6 +201,100 @@ button {
     0 26px 64px rgba(10, 5, 35, 0.62),
     0 0 0 2px rgba(255, 87, 164, 0.34),
     inset 0 1px 0 rgba(199, 247, 255, 0.3);
+}
+
+.sound-prompt-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(10, 7, 31, 0.68);
+  backdrop-filter: blur(8px);
+}
+
+.sound-prompt {
+  width: min(100%, 420px);
+  display: grid;
+  gap: 14px;
+  padding: 26px 24px 24px;
+  border: 2px solid rgba(125, 223, 255, 0.78);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(32, 25, 77, 0.97), rgba(21, 17, 56, 0.97)),
+    linear-gradient(90deg, rgba(255, 95, 162, 0.16), rgba(74, 228, 255, 0.14));
+  box-shadow:
+    0 28px 64px rgba(3, 3, 18, 0.6),
+    0 0 0 2px rgba(255, 87, 164, 0.24),
+    inset 0 1px 0 rgba(203, 248, 255, 0.26);
+  text-align: center;
+}
+
+.sound-prompt-kicker {
+  margin: 0;
+  color: #7ce9ff;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.sound-prompt-title {
+  margin: 0;
+  color: #ffe978;
+  font-size: clamp(1.8rem, 6vw, 2.5rem);
+  line-height: 0.95;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 12px rgba(255, 241, 145, 0.36),
+    0 4px 0 rgba(53, 35, 15, 0.36);
+}
+
+.sound-prompt-copy {
+  margin: 0;
+  color: rgba(231, 248, 255, 0.9);
+  font-size: 0.98rem;
+  line-height: 1.5;
+}
+
+.sound-prompt-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.sound-prompt-button {
+  min-height: 48px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  color: #fffdf7;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sound-prompt-button-primary {
+  border-color: rgba(255, 235, 133, 0.8);
+  background: linear-gradient(180deg, #ff5d9f 0%, #d93279 100%);
+  box-shadow:
+    0 14px 28px rgba(62, 10, 33, 0.46),
+    0 0 18px rgba(255, 110, 172, 0.28),
+    inset 0 1px 0 rgba(255, 224, 240, 0.5);
+}
+
+.sound-prompt-button-secondary {
+  border-color: rgba(125, 223, 255, 0.54);
+  background:
+    linear-gradient(180deg, rgba(38, 35, 88, 0.96), rgba(29, 26, 74, 0.96));
+  color: #c8f7ff;
+  box-shadow:
+    0 12px 24px rgba(8, 7, 32, 0.32),
+    inset 0 1px 0 rgba(173, 239, 255, 0.16);
 }
 
 .intro-copy {
@@ -1295,6 +1454,18 @@ button {
 @media (max-width: 560px) {
   .intro-shell {
     padding: 12px;
+  }
+
+  .sound-prompt-backdrop {
+    padding: 16px;
+  }
+
+  .sound-prompt {
+    padding: 22px 18px 18px;
+  }
+
+  .sound-prompt-actions {
+    grid-template-columns: 1fr;
   }
 
   .intro-panel {

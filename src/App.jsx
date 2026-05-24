@@ -33,8 +33,7 @@ const initialGame = {
   wipedTears: 0,
   spawnMs: 900,
   fallSpeed: 220,
-  feedback:
-    "sdfsdf",
+  feedback: "sdfsdf",
 };
 
 function formatTime(ms) {
@@ -137,7 +136,8 @@ function getInitialStageHeight() {
 export default function App() {
   const [game, setGame] = useState(initialGame);
   const [tears, setTears] = useState([]);
-  const [soundOn, setSoundOn] = useState(true);
+  const [soundOn, setSoundOn] = useState(false);
+  const [showSoundPrompt, setShowSoundPrompt] = useState(true);
   const [wipeCursor, setWipeCursor] = useState({
     x: 0,
     y: 0,
@@ -147,12 +147,13 @@ export default function App() {
   const audioContextRef = useRef(null);
   const masterGainRef = useRef(null);
   const welcomeMusicRef = useRef(null);
-  const gameOverMusicRef = useRef(null);
   const wipeSfxRef = useRef([]);
   const missedCryRef = useRef([]);
   const gameOverSfxTemplateRef = useRef(null);
   const activeGameOverSfxRef = useRef([]);
-  const soundOnRef = useRef(true);
+  const activeEffectRef = useRef({ kind: null, audio: null });
+  const soundOnRef = useRef(false);
+  const pendingWelcomeUnlockRef = useRef(false);
   const stageRef = useRef(null);
   const floodSceneRef = useRef(null);
   const animationRef = useRef(0);
@@ -180,13 +181,24 @@ export default function App() {
   }, [soundOn]);
 
   useEffect(() => {
+    statusRef.current = game.status;
+  }, [game.status]);
+
+  useEffect(() => {
     const audio = new Audio(welcomeMusic);
 
+    audio.preload = "auto";
     audio.loop = true;
     audio.volume = 0.36;
+    audio.load();
     welcomeMusicRef.current = audio;
 
+    if (soundOnRef.current && statusRef.current === "idle") {
+      startWelcomeMusic();
+    }
+
     return () => {
+      pendingWelcomeUnlockRef.current = false;
       audio.pause();
       welcomeMusicRef.current = null;
     };
@@ -247,98 +259,46 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const audio = new Audio(gameOverSfx);
+    function handleWelcomeUnlock() {
+      if (
+        !pendingWelcomeUnlockRef.current ||
+        !soundOnRef.current ||
+        statusRef.current !== "idle"
+      ) {
+        return;
+      }
 
-    audio.loop = true;
-    audio.volume = 0.42;
-    gameOverMusicRef.current = audio;
+      getAudioNodes();
+      startWelcomeMusic({ restart: true });
+    }
+
+    window.addEventListener("pointerdown", handleWelcomeUnlock, {
+      passive: true,
+    });
+    window.addEventListener("keydown", handleWelcomeUnlock);
 
     return () => {
-      audio.pause();
-      gameOverMusicRef.current = null;
+      window.removeEventListener("pointerdown", handleWelcomeUnlock);
+      window.removeEventListener("keydown", handleWelcomeUnlock);
     };
   }, []);
 
-  function stopAmbientTracks() {
-    if (welcomeMusicRef.current) {
-      welcomeMusicRef.current.pause();
-      welcomeMusicRef.current.currentTime = 0;
-    }
-
-    if (gameOverMusicRef.current) {
-      gameOverMusicRef.current.pause();
-      gameOverMusicRef.current.currentTime = 0;
-    }
-  }
-
-  function syncAmbientTrack(status, restart = false) {
+  useEffect(() => {
     const welcomeTrack = welcomeMusicRef.current;
-    const gameOverTrack = gameOverMusicRef.current;
 
-    if (!welcomeTrack || !gameOverTrack) {
+    if (!welcomeTrack) {
       return;
     }
 
-    if (!soundOnRef.current) {
-      stopAmbientTracks();
+    if (soundOn && game.status === "idle") {
+      startWelcomeMusic();
       return;
     }
 
-    if (status === "idle") {
-      gameOverTrack.pause();
-      gameOverTrack.currentTime = 0;
-
-      if (restart) {
-        welcomeTrack.currentTime = 0;
-      }
-
-      if (welcomeTrack.paused) {
-        welcomeTrack.play().catch(() => {});
-      }
-      return;
-    }
-
-    if (status === "gameover") {
-      welcomeTrack.pause();
-      welcomeTrack.currentTime = 0;
-
-      if (restart) {
-        gameOverTrack.currentTime = 0;
-      }
-
-      if (gameOverTrack.paused) {
-        gameOverTrack.play().catch(() => {});
-      }
-      return;
-    }
-
-    stopAmbientTracks();
-  }
-
-  useEffect(() => {
-    if (!soundOn || (game.status !== "idle" && game.status !== "gameover")) {
-      return;
-    }
-
-    function unlockAmbientAudio() {
-      getAudioNodes();
-      syncAmbientTrack(game.status);
-    }
-
-    window.addEventListener("pointerdown", unlockAmbientAudio);
-    window.addEventListener("keydown", unlockAmbientAudio);
-    window.addEventListener("touchstart", unlockAmbientAudio, { passive: true });
-
-    return () => {
-      window.removeEventListener("pointerdown", unlockAmbientAudio);
-      window.removeEventListener("keydown", unlockAmbientAudio);
-      window.removeEventListener("touchstart", unlockAmbientAudio);
-    };
+    pendingWelcomeUnlockRef.current = false;
+    welcomeTrack.pause();
+    welcomeTrack.currentTime = 0;
   }, [soundOn, game.status]);
-
-  useEffect(() => {
-    syncAmbientTrack(game.status);
-  }, [game.status, soundOn]);
 
   useEffect(() => {
     function measureStage() {
@@ -393,7 +353,113 @@ export default function App() {
     };
   }
 
-  function playTone({ frequency, duration, type = "sine", volume = 0.12, bendTo = null }) {
+  function startWelcomeMusic({ restart = false } = {}) {
+    const welcomeTrack = welcomeMusicRef.current;
+
+    if (!welcomeTrack || !soundOnRef.current || statusRef.current !== "idle") {
+      return;
+    }
+
+    if (restart) {
+      welcomeTrack.currentTime = 0;
+    }
+
+    pendingWelcomeUnlockRef.current = false;
+    welcomeTrack.play().catch((error) => {
+      if (error?.name === "NotAllowedError") {
+        pendingWelcomeUnlockRef.current = true;
+      }
+    });
+  }
+
+  function stopAudioInstance(audio) {
+    if (!audio) {
+      return;
+    }
+
+    audio.onended = null;
+    audio.pause();
+    audio.currentTime = 0;
+  }
+
+  function isAudioPlaying(audio) {
+    return Boolean(audio && !audio.paused && !audio.ended);
+  }
+
+  function clearActiveEffect(audio) {
+    if (activeEffectRef.current.audio === audio) {
+      activeEffectRef.current = {
+        kind: null,
+        audio: null,
+      };
+    }
+  }
+
+  function stopAllEffectAudio() {
+    [...(wipeSfxRef.current ?? []), ...(missedCryRef.current ?? [])].forEach(
+      stopAudioInstance,
+    );
+    activeGameOverSfxRef.current.forEach(stopAudioInstance);
+    activeGameOverSfxRef.current = [];
+    activeEffectRef.current = {
+      kind: null,
+      audio: null,
+    };
+  }
+
+  function finishEffectPlayback(audio, kind) {
+    if (kind === "gameover") {
+      activeGameOverSfxRef.current = activeGameOverSfxRef.current.filter(
+        (item) => item !== audio,
+      );
+    }
+
+    clearActiveEffect(audio);
+  }
+
+  function beginEffectPlayback(kind, audio) {
+    if (!audio) {
+      return;
+    }
+
+    activeEffectRef.current = { kind, audio };
+    audio.currentTime = 0;
+    audio.onended = () => {
+      finishEffectPlayback(audio, kind);
+    };
+    audio.play().catch(() => {
+      finishEffectPlayback(audio, kind);
+    });
+  }
+
+  function claimEffectChannel() {
+    if (!soundOnRef.current) {
+      return false;
+    }
+
+    const activeEffect = activeEffectRef.current.audio;
+
+    if (isAudioPlaying(activeEffect)) {
+      stopAudioInstance(activeEffect);
+      clearActiveEffect(activeEffect);
+    }
+
+    return true;
+  }
+
+  function stopAllAudio() {
+    pendingWelcomeUnlockRef.current = false;
+    stopAudioInstance(welcomeMusicRef.current);
+    stopAllEffectAudio();
+  }
+
+  function playTone({
+    frequency,
+    duration,
+    type = "sine",
+    volume = 0.12,
+    bendTo = null,
+  }) {
     if (!soundOnRef.current) {
       return;
     }
@@ -438,8 +504,15 @@ export default function App() {
     }
 
     const { audioContext, masterGain } = nodes;
-    const bufferSize = Math.max(1, Math.floor(audioContext.sampleRate * duration));
-    const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+    const bufferSize = Math.max(
+      1,
+      Math.floor(audioContext.sampleRate * duration),
+    );
+    const buffer = audioContext.createBuffer(
+      1,
+      bufferSize,
+      audioContext.sampleRate,
+    );
     const channel = buffer.getChannelData(0);
 
     for (let index = 0; index < bufferSize; index += 1) {
@@ -464,28 +537,20 @@ export default function App() {
     source.start(now);
   }
 
-  function playFromPool(poolRef) {
-    if (!soundOnRef.current) {
-      return;
-    }
-
+  function playFromPool(kind, poolRef) {
     const pool = poolRef.current;
 
-    if (!pool || pool.length === 0) {
+    if (!pool || pool.length === 0 || !claimEffectChannel()) {
       return;
     }
 
-    const sound = pool.find((audio) => audio.paused || audio.ended) ?? pool[0];
-
-    sound.currentTime = 0;
-    sound.play().catch(() => {});
+    const sound = pool[0];
+    beginEffectPlayback(kind, sound);
   }
 
   function primeAudioOnUnlock(includeGameplay = false) {
     const allSounds = includeGameplay
-      ? [
-          ...(wipeSfxRef.current ?? []),
-        ].filter(Boolean)
+      ? [...(wipeSfxRef.current ?? [])].filter(Boolean)
       : [welcomeMusicRef.current].filter(Boolean);
 
     allSounds.forEach((audio) => {
@@ -507,55 +572,74 @@ export default function App() {
   }
 
   function playWipeSound() {
-    playFromPool(wipeSfxRef);
+    if (!soundOnRef.current) {
+      return;
+    }
+
+    const pool = wipeSfxRef.current;
+
+    if (!pool || pool.length === 0) {
+      return;
+    }
+
+    pool.forEach(stopAudioInstance);
+    pool[0].play().catch(() => {});
   }
 
   function playCrySound() {
-    playFromPool(missedCryRef);
+    playFromPool("cry", missedCryRef);
   }
 
-  function playGameOverSound() {
-    if (!soundOnRef.current || !gameOverSfxTemplateRef.current) {
+  function playGameOverSound({ interruptAll = false } = {}) {
+    if (!gameOverSfxTemplateRef.current || !soundOnRef.current) {
+      return;
+    }
+
+    if (interruptAll) {
+      stopAllAudio();
+    } else if (!claimEffectChannel()) {
       return;
     }
 
     const oneShot = gameOverSfxTemplateRef.current.cloneNode(true);
 
     oneShot.volume = 0.6;
-    oneShot.currentTime = 0;
     activeGameOverSfxRef.current.push(oneShot);
-    oneShot.play().catch(() => {});
+    beginEffectPlayback("gameover", oneShot);
+  }
 
-    oneShot.onended = () => {
-      activeGameOverSfxRef.current = activeGameOverSfxRef.current.filter(
-        (audio) => audio !== oneShot,
-      );
-    };
+  function enableSound({ restartWelcome = false } = {}) {
+    soundOnRef.current = true;
+    pendingWelcomeUnlockRef.current = false;
+    setSoundOn(true);
+    setShowSoundPrompt(false);
+    getAudioNodes();
+
+    if (statusRef.current === "idle") {
+      startWelcomeMusic({ restart: restartWelcome });
+      return;
+    }
+
+    primeAudioOnUnlock(true);
+
+    if (statusRef.current === "gameover") {
+      playGameOverSound({ interruptAll: true });
+    }
+  }
+
+  function disableSound() {
+    soundOnRef.current = false;
+    setSoundOn(false);
+    stopAllAudio();
   }
 
   function toggleSound() {
-    setSoundOn((current) => {
-      const next = !current;
+    if (soundOnRef.current) {
+      disableSound();
+      return;
+    }
 
-      soundOnRef.current = next;
-
-      if (next) {
-        getAudioNodes();
-        if (statusRef.current === "idle" || statusRef.current === "gameover") {
-          syncAmbientTrack(statusRef.current, true);
-        } else {
-          primeAudioOnUnlock(true);
-        }
-
-        if (statusRef.current === "gameover") {
-          playGameOverSound();
-        }
-      } else {
-        stopAmbientTracks();
-      }
-
-      return next;
-    });
+    enableSound({ restartWelcome: statusRef.current === "idle" });
   }
 
   const soundButton = (
@@ -565,16 +649,36 @@ export default function App() {
       onClick={toggleSound}
       aria-pressed={soundOn}
       aria-label={soundOn ? "Turn sound off" : "Turn sound on"}
+      title={soundOn ? "Sound on" : "Sound off"}
     >
-      <span className="sound-toggle-icon">{soundOn ? "ON" : "OFF"}</span>
-      <span>Sound</span>
+      <span className="sr-only">{soundOn ? "Sound on" : "Sound off"}</span>
+      <svg
+        className="sound-toggle-icon"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path
+          className="sound-toggle-speaker"
+          d="M4 10v4h4.2L13 18V6L8.2 10H4Z"
+        />
+        <path
+          className="sound-toggle-wave sound-toggle-wave-one"
+          d="M16 9.4a4.3 4.3 0 0 1 0 5.2"
+        />
+        <path
+          className="sound-toggle-wave sound-toggle-wave-two"
+          d="M18.7 7.2a7.6 7.6 0 0 1 0 9.6"
+        />
+        <path className="sound-toggle-slash" d="M6 18 18 6" />
+      </svg>
+      <span className="sound-toggle-status" aria-hidden="true" />
     </button>
   );
 
   function endGame(finalElapsedMs, bucketDrops) {
     statusRef.current = "gameover";
     window.cancelAnimationFrame(animationRef.current);
-    playGameOverSound();
+    playGameOverSound({ interruptAll: true });
 
     setGame((current) => ({
       ...current,
@@ -686,6 +790,8 @@ export default function App() {
   }
 
   function startGame() {
+    stopAllAudio();
+
     if (soundOnRef.current) {
       getAudioNodes();
       primeAudioOnUnlock(true);
@@ -819,7 +925,19 @@ export default function App() {
         <section className="intro-panel">
           <div className="intro-copy">
             <h1 className="intro-title">
-              SENA<span>TEARS</span>{" "}
+              SENA
+              <span
+                style={{
+                  color: "#38bdf8",
+                  textShadow: `
+        0 0 8px rgba(56, 189, 248, 0.9),
+        0 0 18px rgba(14, 165, 233, 0.8),
+        0 0 28px rgba(2, 132, 199, 0.7)
+      `,
+                }}
+              >
+                TEARS
+              </span>
             </h1>
             <p className="eyebrow">How To Play</p>
             <p className="intro-lead" style={{ marginTop: -25 }}>
@@ -858,6 +976,41 @@ export default function App() {
             </div>
           </div>
         </section>
+
+        {showSoundPrompt ? (
+          <div className="sound-prompt-backdrop">
+            <section
+              className="sound-prompt"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="sound-prompt-title"
+            >
+              <p className="sound-prompt-kicker">Audio Recommendation</p>
+              <h2 id="sound-prompt-title" className="sound-prompt-title">
+                Better with sound
+              </h2>
+              <p className="sound-prompt-copy">
+                Turn the music on for the full drama.
+              </p>
+              <div className="sound-prompt-actions">
+                <button
+                  type="button"
+                  className="sound-prompt-button sound-prompt-button-primary"
+                  onClick={() => enableSound({ restartWelcome: true })}
+                >
+                  Turn it on
+                </button>
+                <button
+                  type="button"
+                  className="sound-prompt-button sound-prompt-button-secondary"
+                  onClick={() => setShowSoundPrompt(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </section>
+          </div>
+        ) : null}
       </main>
     );
   }
@@ -872,9 +1025,7 @@ export default function App() {
         <section className="gameover-panel">
           <p className="gameover-kicker">Thank you for playing!</p>
           <h1 className="gameover-title">Game Over</h1>
-          <p className="gameover-copy">
-           Hindi n'yo kasi kinumusta!
-          </p>
+          <p className="gameover-copy">Hindi n'yo kasi kinumusta!</p>
 
           <div className="gameover-portrait-wrap">
             <div className="gameover-portrait-frame">
@@ -952,8 +1103,6 @@ export default function App() {
                   </span>
                 </div>
 
-   
-
                 {tears.map((tear) => (
                   <div
                     key={tear.id}
@@ -966,7 +1115,11 @@ export default function App() {
                       height: `${tear.size * 1.3}px`,
                     }}
                   >
-                    <img className="tear-drop-image" src={tearDropImage} alt="" />
+                    <img
+                      className="tear-drop-image"
+                      src={tearDropImage}
+                      alt=""
+                    />
                   </div>
                 ))}
 
