@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import cryingCharacter from "./assets/crying-character.png";
 import distressedCharacter from "./assets/crying-character-distressed.png";
 import gameOverCharacter from "./assets/crying-character-gameover.png";
@@ -133,16 +133,65 @@ function getInitialStageHeight() {
   return window.innerWidth <= 760 ? 360 : 670;
 }
 
+function getPerformanceMode() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const ua = window.navigator.userAgent ?? "";
+  const isAndroid = /Android/i.test(ua);
+  const lowMemory =
+    typeof window.navigator.deviceMemory === "number" &&
+    window.navigator.deviceMemory <= 4;
+  const lowCpu =
+    typeof window.navigator.hardwareConcurrency === "number" &&
+    window.navigator.hardwareConcurrency <= 6;
+
+  return isAndroid || (window.innerWidth <= 760 && (lowMemory || lowCpu));
+}
+
+function shouldShowWipeCursor(performanceMode) {
+  if (typeof window === "undefined") {
+    return true;
+  }
+
+  return !performanceMode && window.matchMedia("(pointer: fine)").matches;
+}
+
+const GameSidebar = memo(function GameSidebar({
+  currentMood,
+  speech,
+  portraitSource,
+  showDistressedFace,
+}) {
+  return (
+    <aside className={`sidebar-panel game-sidebar mood-${currentMood}`}>
+      <div className="character-dialogue-wrap">
+        <div className="speech-bubble">{speech}</div>
+
+        <div
+          className={`portrait-card game-portrait-card ${showDistressedFace ? "is-distressed" : ""}`}
+        >
+          <img
+            className="character-image"
+            src={portraitSource}
+            alt="Pixel-art crying character"
+          />
+        </div>
+      </div>
+    </aside>
+  );
+});
+
 export default function App() {
   const [game, setGame] = useState(initialGame);
   const [tears, setTears] = useState([]);
   const [soundOn, setSoundOn] = useState(false);
   const [showSoundPrompt, setShowSoundPrompt] = useState(true);
-  const [wipeCursor, setWipeCursor] = useState({
-    x: 0,
-    y: 0,
-    active: false,
-  });
+  const [performanceMode, setPerformanceMode] = useState(getPerformanceMode);
+  const [showWipeCursor, setShowWipeCursor] = useState(() =>
+    shouldShowWipeCursor(getPerformanceMode()),
+  );
 
   const audioContextRef = useRef(null);
   const masterGainRef = useRef(null);
@@ -155,6 +204,8 @@ export default function App() {
   const pendingWelcomeUnlockRef = useRef(false);
   const stageRef = useRef(null);
   const floodSceneRef = useRef(null);
+  const wipeCursorRef = useRef(null);
+  const showWipeCursorRef = useRef(showWipeCursor);
   const animationRef = useRef(0);
   const runStartedAtRef = useRef(0);
   const lastFrameAtRef = useRef(0);
@@ -182,6 +233,15 @@ export default function App() {
   useEffect(() => {
     statusRef.current = game.status;
   }, [game.status]);
+
+  useEffect(() => {
+    showWipeCursorRef.current = showWipeCursor;
+    syncWipeCursorElement(
+      pointerRef.current.x,
+      pointerRef.current.y,
+      pointerRef.current.active,
+    );
+  }, [showWipeCursor]);
 
   useEffect(() => {
     const audio = new Audio(welcomeMusic);
@@ -299,6 +359,11 @@ export default function App() {
 
   useEffect(() => {
     function measureStage() {
+      const nextPerformanceMode = getPerformanceMode();
+
+      setPerformanceMode(nextPerformanceMode);
+      setShowWipeCursor(shouldShowWipeCursor(nextPerformanceMode));
+
       if (!stageRef.current) {
         return;
       }
@@ -318,6 +383,19 @@ export default function App() {
       window.cancelAnimationFrame(animationRef.current);
     };
   }, []);
+
+  function syncWipeCursorElement(x, y, active) {
+    if (!wipeCursorRef.current) {
+      return;
+    }
+
+    wipeCursorRef.current.style.left = `${x}px`;
+    wipeCursorRef.current.style.top = `${y}px`;
+    wipeCursorRef.current.classList.toggle(
+      "is-active",
+      active && showWipeCursorRef.current,
+    );
+  }
 
   function getAudioNodes() {
     if (typeof window === "undefined") {
@@ -689,7 +767,6 @@ export default function App() {
     const deltaMs = lastFrameAtRef.current ? now - lastFrameAtRef.current : 16;
     const deltaSeconds = deltaMs / 1000;
     const spawnMs = getSpawnMs(elapsedMs);
-    const fallSpeed = getFallSpeed(elapsedMs);
     const stageWidth = stageSizeRef.current.width;
     const stageHeight = stageSizeRef.current.height;
     const floodHeight = stageSizeRef.current.floodHeight ?? BUCKET_HEIGHT;
@@ -761,20 +838,32 @@ export default function App() {
       return;
     }
 
-    setGame((current) => ({
-      ...current,
-      elapsedMs,
-      bucketDrops: bucketDropsRef.current,
-      wipedTears: wipedTearsRef.current,
-      spawnMs,
-      fallSpeed,
-      feedback:
-        bucketHitsThisFrame > 0
-          ? `A tear joined the flood. ${BUCKET_LIMIT - bucketDropsRef.current} slot${BUCKET_LIMIT - bucketDropsRef.current === 1 ? "" : "s"} left.`
-          : wipedThisFrame > 0
-            ? "Nice wipe. Keep clearing the flow before the flood rises."
-            : current.feedback,
-    }));
+    const displayElapsedMs = Math.floor(elapsedMs / 100) * 100;
+    const nextFeedback =
+      bucketHitsThisFrame > 0
+        ? `A tear joined the flood. ${BUCKET_LIMIT - bucketDropsRef.current} slot${BUCKET_LIMIT - bucketDropsRef.current === 1 ? "" : "s"} left.`
+        : wipedThisFrame > 0
+          ? "Nice wipe. Keep clearing the flow before the flood rises."
+          : null;
+
+    setGame((current) => {
+      if (
+        current.elapsedMs === displayElapsedMs &&
+        current.bucketDrops === bucketDropsRef.current &&
+        current.wipedTears === wipedTearsRef.current &&
+        !nextFeedback
+      ) {
+        return current;
+      }
+
+      return {
+        ...current,
+        elapsedMs: displayElapsedMs,
+        bucketDrops: bucketDropsRef.current,
+        wipedTears: wipedTearsRef.current,
+        feedback: nextFeedback ?? current.feedback,
+      };
+    });
 
     animationRef.current = window.requestAnimationFrame(frame);
   }
@@ -812,12 +901,7 @@ export default function App() {
       y: 0,
       active: false,
     };
-
-    setWipeCursor({
-      x: 0,
-      y: 0,
-      active: false,
-    });
+    syncWipeCursorElement(0, 0, false);
     setTears([]);
     setGame({
       status: "playing",
@@ -848,12 +932,7 @@ export default function App() {
       y,
       active,
     };
-
-    setWipeCursor({
-      x,
-      y,
-      active,
-    });
+    syncWipeCursorElement(x, y, active);
   }
 
   function handlePointerDown(event) {
@@ -882,11 +961,11 @@ export default function App() {
       ...pointerRef.current,
       active: false,
     };
-
-    setWipeCursor((current) => ({
-      ...current,
-      active: false,
-    }));
+    syncWipeCursorElement(
+      pointerRef.current.x,
+      pointerRef.current.y,
+      false,
+    );
   }
 
   const liveTotalMs =
@@ -907,7 +986,7 @@ export default function App() {
 
   if (game.status === "idle") {
     return (
-      <main className="intro-shell">
+      <main className={`intro-shell ${performanceMode ? "performance-mode" : ""}`}>
         {soundButton}
         <div className="ambient ambient-one" />
         <div className="ambient ambient-two" />
@@ -1007,7 +1086,9 @@ export default function App() {
 
   if (game.status === "gameover") {
     return (
-      <main className="gameover-shell">
+      <main
+        className={`gameover-shell ${performanceMode ? "performance-mode" : ""}`}
+      >
         {soundButton}
         <div className="gameover-glow gameover-glow-one" />
         <div className="gameover-glow gameover-glow-two" />
@@ -1049,28 +1130,19 @@ export default function App() {
   }
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell ${performanceMode ? "performance-mode" : ""}`}>
       {soundButton}
       <div className="ambient ambient-one" />
       <div className="ambient ambient-two" />
 
       <section className="layout-shell game-layout-shell">
         <div className="layout-grid game-layout-grid">
-          <aside className={`sidebar-panel game-sidebar mood-${currentMood}`}>
-            <div className="character-dialogue-wrap">
-              <div className="speech-bubble">{speech}</div>
-
-              <div
-                className={`portrait-card game-portrait-card ${showDistressedFace ? "is-distressed" : ""}`}
-              >
-                <img
-                  className="character-image"
-                  src={portraitSource}
-                  alt="Pixel-art crying character"
-                />
-              </div>
-            </div>
-          </aside>
+          <GameSidebar
+            currentMood={currentMood}
+            speech={speech}
+            portraitSource={portraitSource}
+            showDistressedFace={showDistressedFace}
+          />
 
           <section className="stage-panel game-stage-panel">
             <div className="stage-frame game-stage-frame">
@@ -1113,15 +1185,8 @@ export default function App() {
                   </div>
                 ))}
 
-                {wipeCursor.active ? (
-                  <div
-                    className="wipe-cursor"
-                    aria-hidden="true"
-                    style={{
-                      left: `${wipeCursor.x}px`,
-                      top: `${wipeCursor.y}px`,
-                    }}
-                  >
+                {showWipeCursor ? (
+                  <div ref={wipeCursorRef} className="wipe-cursor" aria-hidden="true">
                     <img
                       className="wipe-cursor-image"
                       src={handkerchiefCursor}
