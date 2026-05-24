@@ -10,7 +10,7 @@ import wipeDropSfx from "./assets/wipe-drop.mp3";
 import missedCrySfx from "./assets/missed-cry.mp3";
 import gameOverSfx from "./assets/game-over.mp3";
 
-const BUCKET_LIMIT = 3;
+const BUCKET_LIMIT = 8;
 const BUCKET_HEIGHT = 136;
 const BUCKET_BOTTOM_OFFSET = 0;
 const MOBILE_BUCKET_BOTTOM_GAP = 18;
@@ -856,10 +856,9 @@ export default function App() {
       compactLayout ? MOBILE_MAX_DELTA_MS : DESKTOP_MAX_DELTA_MS,
     );
     const deltaSeconds = deltaMs / 1000;
-    const bucketTop = stageHeight - BUCKET_BOTTOM_OFFSET - floodHeight;
-    const bucketHitLine = compactLayout
-      ? stageHeight - MOBILE_BUCKET_BOTTOM_GAP
-      : bucketTop;
+const bucketTop = stageHeight - BUCKET_BOTTOM_OFFSET - floodHeight;
+
+const bucketHitLine = compactLayout ? bucketTop + 12 : bucketTop;
 
     lastFrameAtRef.current = now;
 
