@@ -1057,6 +1057,18 @@ export default function App() {
                 alt="Pixel-art crying character"
               />
             </div>
+
+            <div className="intro-handkerchief-card">
+              <p className="intro-handkerchief-kicker">Your Tool</p>
+              <strong className="intro-handkerchief-title">
+                Kumusta Handkerchief
+              </strong>
+              <img
+                className="intro-handkerchief-image"
+                src={handkerchiefCursor}
+                alt="Pixel-art Kumusta Handkerchief"
+              />
+            </div>
           </div>
         </section>
 
