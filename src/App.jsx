@@ -227,6 +227,7 @@ export default function App() {
   const stageRef = useRef(null);
   const floodSceneRef = useRef(null);
   const wipeCursorRef = useRef(null);
+  const tearNodesRef = useRef(new Map());
   const showWipeCursorRef = useRef(showWipeCursor);
   const performanceModeRef = useRef(performanceMode);
   const pointerTrailRef = useRef({
@@ -430,6 +431,29 @@ export default function App() {
       "is-active",
       active && showWipeCursorRef.current,
     );
+  }
+
+  function setTearNode(id, node) {
+    if (node) {
+      tearNodesRef.current.set(id, node);
+      return;
+    }
+
+    tearNodesRef.current.delete(id);
+  }
+
+  function syncTearNodes(nextTears) {
+    nextTears.forEach((tear) => {
+      const node = tearNodesRef.current.get(tear.id);
+
+      if (!node) {
+        return;
+      }
+
+      node.style.transform = `translate3d(${tear.x}px, ${tear.y}px, 0) translate(-50%, -50%)`;
+      node.style.width = `${tear.size}px`;
+      node.style.height = `${tear.size * 1.3}px`;
+    });
   }
 
   function getAudioNodes() {
@@ -896,6 +920,7 @@ export default function App() {
     }
 
     tearsRef.current = nextTears;
+    syncTearNodes(nextTears);
     const shouldRenderTears =
       !performanceModeRef.current ||
       now - lastTearRenderAtRef.current >= 33 ||
@@ -970,6 +995,7 @@ export default function App() {
     nextTearIdRef.current = 1;
     tearsRef.current = [];
     lastTearRenderAtRef.current = 0;
+    tearNodesRef.current.clear();
     bucketDropsRef.current = 0;
     wipedTearsRef.current = 0;
     statusRef.current = "playing";
@@ -1271,6 +1297,7 @@ export default function App() {
                 {tears.map((tear) => (
                   <div
                     key={tear.id}
+                    ref={(node) => setTearNode(tear.id, node)}
                     className="tear-drop"
                     aria-hidden="true"
                     style={{
