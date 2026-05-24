@@ -13,6 +13,8 @@ import gameOverSfx from "./assets/game-over.mp3";
 const BUCKET_LIMIT = 8;
 const BUCKET_HEIGHT = 136;
 const BUCKET_BOTTOM_OFFSET = 0;
+const MOBILE_BUCKET_HIT_RATIO = 0.42;
+const MOBILE_WIPE_RADIUS_BONUS = 12;
 const WIPE_RADIUS = 34;
 const TEAR_SOURCES = [0.12, 0.26, 0.4, 0.6, 0.74, 0.88];
 const CHARACTER_DIALOGUE = [
@@ -57,6 +59,30 @@ function clamp(value, min, max) {
 
 function randomBetween(min, max) {
   return min + Math.random() * (max - min);
+}
+
+function getDistanceSquaredToSegment(px, py, ax, ay, bx, by) {
+  const abx = bx - ax;
+  const aby = by - ay;
+  const segmentLengthSquared = abx * abx + aby * aby;
+
+  if (segmentLengthSquared === 0) {
+    const dx = px - ax;
+    const dy = py - ay;
+    return dx * dx + dy * dy;
+  }
+
+  const projection = clamp(
+    ((px - ax) * abx + (py - ay) * aby) / segmentLengthSquared,
+    0,
+    1,
+  );
+  const closestX = ax + abx * projection;
+  const closestY = ay + aby * projection;
+  const dx = px - closestX;
+  const dy = py - closestY;
+
+  return dx * dx + dy * dy;
 }
 
 function createTear(id, stageWidth, elapsedMs, source = null, laneOffset = 0) {
@@ -203,6 +229,11 @@ export default function App() {
   const wipeCursorRef = useRef(null);
   const showWipeCursorRef = useRef(showWipeCursor);
   const performanceModeRef = useRef(performanceMode);
+  const pointerTrailRef = useRef({
+    x: 0,
+    y: 0,
+    initialized: false,
+  });
   const animationRef = useRef(0);
   const runStartedAtRef = useRef(0);
   const lastFrameAtRef = useRef(0);
@@ -217,6 +248,7 @@ export default function App() {
     width: 300,
     height: getInitialStageHeight(),
     floodHeight: BUCKET_HEIGHT,
+    compactLayout: false,
   });
   const pointerRef = useRef({
     x: 0,
@@ -374,6 +406,7 @@ export default function App() {
         width: stageRef.current.clientWidth,
         height: stageRef.current.clientHeight,
         floodHeight: floodSceneRef.current?.clientHeight ?? BUCKET_HEIGHT,
+        compactLayout: window.innerWidth <= 760,
       };
     }
 
@@ -772,7 +805,11 @@ export default function App() {
     const stageWidth = stageSizeRef.current.width;
     const stageHeight = stageSizeRef.current.height;
     const floodHeight = stageSizeRef.current.floodHeight ?? BUCKET_HEIGHT;
+    const compactLayout = stageSizeRef.current.compactLayout;
     const bucketTop = stageHeight - BUCKET_BOTTOM_OFFSET - floodHeight;
+    const bucketHitLine = compactLayout
+      ? stageHeight - floodHeight * MOBILE_BUCKET_HIT_RATIO
+      : bucketTop;
 
     lastFrameAtRef.current = now;
 
@@ -791,11 +828,28 @@ export default function App() {
     }));
 
     if (pointerRef.current.active) {
+      const pointerStartX = pointerTrailRef.current.initialized
+        ? pointerTrailRef.current.x
+        : pointerRef.current.x;
+      const pointerStartY = pointerTrailRef.current.initialized
+        ? pointerTrailRef.current.y
+        : pointerRef.current.y;
+      const pointerEndX = pointerRef.current.x;
+      const pointerEndY = pointerRef.current.y;
+      const pointerRadiusBonus = compactLayout ? MOBILE_WIPE_RADIUS_BONUS : 0;
+
       nextTears = nextTears.filter((tear) => {
-        const dx = tear.x - pointerRef.current.x;
-        const dy = tear.y - pointerRef.current.y;
-        const radius = WIPE_RADIUS + tear.size * 0.42;
-        const isWiped = dx * dx + dy * dy <= radius * radius;
+        const radius = WIPE_RADIUS + pointerRadiusBonus + tear.size * 0.42;
+        const isWiped =
+          getDistanceSquaredToSegment(
+            tear.x,
+            tear.y,
+            pointerStartX,
+            pointerStartY,
+            pointerEndX,
+            pointerEndY,
+          ) <=
+          radius * radius;
 
         if (isWiped) {
           wipedThisFrame += 1;
@@ -803,10 +857,18 @@ export default function App() {
 
         return !isWiped;
       });
+
+      pointerTrailRef.current = {
+        x: pointerEndX,
+        y: pointerEndY,
+        initialized: true,
+      };
+    } else {
+      pointerTrailRef.current.initialized = false;
     }
 
     nextTears = nextTears.filter((tear) => {
-      const reachedBucket = tear.y >= bucketTop - tear.size * 0.35;
+      const reachedBucket = tear.y >= bucketHitLine - tear.size * 0.35;
 
       if (reachedBucket) {
         bucketHitsThisFrame += 1;
@@ -894,6 +956,7 @@ export default function App() {
         width: stageRef.current.clientWidth,
         height: stageRef.current.clientHeight,
         floodHeight: floodSceneRef.current?.clientHeight ?? BUCKET_HEIGHT,
+        compactLayout: window.innerWidth <= 760,
       };
     }
 
@@ -914,6 +977,11 @@ export default function App() {
       x: 0,
       y: 0,
       active: false,
+    };
+    pointerTrailRef.current = {
+      x: 0,
+      y: 0,
+      initialized: false,
     };
     syncWipeCursorElement(0, 0, false);
     setTears([]);
@@ -940,6 +1008,14 @@ export default function App() {
     const rect = stageRef.current.getBoundingClientRect();
     const x = clientX - rect.left;
     const y = clientY - rect.top;
+
+    if (!pointerRef.current.active || !pointerTrailRef.current.initialized) {
+      pointerTrailRef.current = {
+        x,
+        y,
+        initialized: true,
+      };
+    }
 
     pointerRef.current = {
       x,
@@ -975,6 +1051,7 @@ export default function App() {
       ...pointerRef.current,
       active: false,
     };
+    pointerTrailRef.current.initialized = false;
     syncWipeCursorElement(
       pointerRef.current.x,
       pointerRef.current.y,
