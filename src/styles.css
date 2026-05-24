@@ -1523,7 +1523,7 @@ button {
   }
 
   .flood-scene {
-    height: clamp(86px, 14dvh, 116px);
+    height: clamp(70px, 11dvh, 90px);
   }
 
   .flood-wave {
@@ -1583,6 +1583,10 @@ button {
   .intro-panel {
     gap: 18px;
     border-radius: 28px;
+  }
+
+  .flood-scene {
+    height: clamp(64px, 10dvh, 80px);
   }
 
   .intro-button {

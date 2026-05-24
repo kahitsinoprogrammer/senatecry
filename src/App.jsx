@@ -13,7 +13,7 @@ import gameOverSfx from "./assets/game-over.mp3";
 const BUCKET_LIMIT = 8;
 const BUCKET_HEIGHT = 136;
 const BUCKET_BOTTOM_OFFSET = 0;
-const MOBILE_BUCKET_HIT_RATIO = 0.42;
+const MOBILE_BUCKET_HIT_RATIO = 0.26;
 const MOBILE_WIPE_RADIUS_BONUS = 12;
 const WIPE_RADIUS = 34;
 const TEAR_SOURCES = [0.12, 0.26, 0.4, 0.6, 0.74, 0.88];
