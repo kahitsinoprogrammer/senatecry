@@ -13,7 +13,7 @@ import gameOverSfx from "./assets/game-over.mp3";
 const BUCKET_LIMIT = 8;
 const BUCKET_HEIGHT = 136;
 const BUCKET_BOTTOM_OFFSET = 0;
-const MOBILE_BUCKET_HIT_RATIO = 0.26;
+const MOBILE_BUCKET_BOTTOM_GAP = 18;
 const MOBILE_WIPE_RADIUS_BONUS = 12;
 const WIPE_RADIUS = 34;
 const TEAR_SOURCES = [0.12, 0.26, 0.4, 0.6, 0.74, 0.88];
@@ -832,7 +832,7 @@ export default function App() {
     const compactLayout = stageSizeRef.current.compactLayout;
     const bucketTop = stageHeight - BUCKET_BOTTOM_OFFSET - floodHeight;
     const bucketHitLine = compactLayout
-      ? stageHeight - floodHeight * MOBILE_BUCKET_HIT_RATIO
+      ? stageHeight - MOBILE_BUCKET_BOTTOM_GAP
       : bucketTop;
 
     lastFrameAtRef.current = now;
