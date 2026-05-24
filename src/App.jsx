@@ -856,9 +856,13 @@ export default function App() {
       compactLayout ? MOBILE_MAX_DELTA_MS : DESKTOP_MAX_DELTA_MS,
     );
     const deltaSeconds = deltaMs / 1000;
-const bucketTop = stageHeight - BUCKET_BOTTOM_OFFSET - floodHeight;
+const stageRect = stageRef.current?.getBoundingClientRect();
+const floodRect = floodSceneRef.current?.getBoundingClientRect();
 
-const bucketHitLine = compactLayout ? bucketTop + 12 : bucketTop;
+const bucketHitLine =
+  stageRect && floodRect
+    ? floodRect.top - stageRect.top
+    : stageHeight - BUCKET_BOTTOM_OFFSET - floodHeight;
 
     lastFrameAtRef.current = now;
 
