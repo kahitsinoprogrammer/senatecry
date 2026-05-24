@@ -202,12 +202,14 @@ export default function App() {
   const floodSceneRef = useRef(null);
   const wipeCursorRef = useRef(null);
   const showWipeCursorRef = useRef(showWipeCursor);
+  const performanceModeRef = useRef(performanceMode);
   const animationRef = useRef(0);
   const runStartedAtRef = useRef(0);
   const lastFrameAtRef = useRef(0);
   const lastSpawnAtRef = useRef(0);
   const nextTearIdRef = useRef(1);
   const tearsRef = useRef([]);
+  const lastTearRenderAtRef = useRef(0);
   const bucketDropsRef = useRef(0);
   const wipedTearsRef = useRef(0);
   const statusRef = useRef(initialGame.status);
@@ -238,6 +240,10 @@ export default function App() {
       pointerRef.current.active,
     );
   }, [showWipeCursor]);
+
+  useEffect(() => {
+    performanceModeRef.current = performanceMode;
+  }, [performanceMode]);
 
   useEffect(() => {
     const audio = new Audio(welcomeMusic);
@@ -385,8 +391,8 @@ export default function App() {
       return;
     }
 
-    wipeCursorRef.current.style.left = `${x}px`;
-    wipeCursorRef.current.style.top = `${y}px`;
+    wipeCursorRef.current.style.setProperty("--cursor-x", `${x}px`);
+    wipeCursorRef.current.style.setProperty("--cursor-y", `${y}px`);
     wipeCursorRef.current.classList.toggle(
       "is-active",
       active && showWipeCursorRef.current,
@@ -772,6 +778,7 @@ export default function App() {
 
     let wipedThisFrame = 0;
     let bucketHitsThisFrame = 0;
+    const previousTearCount = tearsRef.current.length;
 
     let nextTears = tearsRef.current.map((tear) => ({
       ...tear,
@@ -827,7 +834,17 @@ export default function App() {
     }
 
     tearsRef.current = nextTears;
-    setTears(nextTears);
+    const shouldRenderTears =
+      !performanceModeRef.current ||
+      now - lastTearRenderAtRef.current >= 33 ||
+      nextTears.length !== previousTearCount ||
+      wipedThisFrame > 0 ||
+      bucketHitsThisFrame > 0;
+
+    if (shouldRenderTears) {
+      lastTearRenderAtRef.current = now;
+      setTears(nextTears);
+    }
 
     if (bucketDropsRef.current >= BUCKET_LIMIT) {
       endGame(elapsedMs, bucketDropsRef.current);
@@ -889,6 +906,7 @@ export default function App() {
     lastSpawnAtRef.current = now - 350;
     nextTearIdRef.current = 1;
     tearsRef.current = [];
+    lastTearRenderAtRef.current = 0;
     bucketDropsRef.current = 0;
     wipedTearsRef.current = 0;
     statusRef.current = "playing";
@@ -1167,8 +1185,7 @@ export default function App() {
                     className="tear-drop"
                     aria-hidden="true"
                     style={{
-                      left: `${tear.x}px`,
-                      top: `${tear.y}px`,
+                      transform: `translate3d(${tear.x}px, ${tear.y}px, 0) translate(-50%, -50%)`,
                       width: `${tear.size}px`,
                       height: `${tear.size * 1.3}px`,
                     }}

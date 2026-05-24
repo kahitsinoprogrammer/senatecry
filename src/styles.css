@@ -1076,11 +1076,13 @@ button {
 
 .tear-drop {
   position: absolute;
-  transform: translate(-50%, -50%);
+  left: 0;
+  top: 0;
   filter:
     drop-shadow(0 10px 12px rgba(17, 105, 190, 0.26))
     drop-shadow(0 0 10px rgba(95, 221, 255, 0.2));
   pointer-events: none;
+  will-change: transform;
 }
 
 .tear-drop-image {
@@ -1093,12 +1095,15 @@ button {
 
 .wipe-cursor {
   position: absolute;
+  left: 0;
+  top: 0;
   width: 104px;
   height: 104px;
-  transform: translate(-50%, -50%) rotate(-12deg);
+  transform: translate3d(var(--cursor-x, 0), var(--cursor-y, 0), 0)
+    translate(-50%, -50%) rotate(-12deg);
   opacity: 0;
   pointer-events: none;
-  will-change: left, top, opacity;
+  will-change: transform, opacity;
 }
 
 .wipe-cursor.is-active {
@@ -1304,7 +1309,8 @@ button {
 .performance-mode .wipe-cursor {
   width: 76px;
   height: 76px;
-  transform: translate(-50%, -50%) rotate(-8deg);
+  transform: translate3d(var(--cursor-x, 0), var(--cursor-y, 0), 0)
+    translate(-50%, -50%) rotate(-8deg);
 }
 
 .performance-mode .flood-water,
