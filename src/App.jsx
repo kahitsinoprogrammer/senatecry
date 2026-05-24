@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import cryingCharacter from "./assets/crying-character.png";
 import distressedCharacter from "./assets/crying-character-distressed.png";
 import gameOverCharacter from "./assets/crying-character-gameover.png";
@@ -277,6 +277,10 @@ export default function App() {
   useEffect(() => {
     performanceModeRef.current = performanceMode;
   }, [performanceMode]);
+
+  useLayoutEffect(() => {
+    syncTearNodes(tearsRef.current);
+  }, [tears]);
 
   useEffect(() => {
     const audio = new Audio(welcomeMusic);
@@ -1301,7 +1305,6 @@ export default function App() {
                     className="tear-drop"
                     aria-hidden="true"
                     style={{
-                      transform: `translate3d(${tear.x}px, ${tear.y}px, 0) translate(-50%, -50%)`,
                       width: `${tear.size}px`,
                       height: `${tear.size * 1.3}px`,
                     }}
