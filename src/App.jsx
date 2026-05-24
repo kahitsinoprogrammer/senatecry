@@ -15,6 +15,8 @@ const BUCKET_HEIGHT = 136;
 const BUCKET_BOTTOM_OFFSET = 0;
 const MOBILE_BUCKET_BOTTOM_GAP = 18;
 const MOBILE_WIPE_RADIUS_BONUS = 12;
+const MOBILE_MAX_DELTA_MS = 24;
+const DESKTOP_MAX_DELTA_MS = 32;
 const WIPE_RADIUS = 34;
 const TEAR_SOURCES = [0.12, 0.26, 0.4, 0.6, 0.74, 0.88];
 const CHARACTER_DIALOGUE = [
@@ -827,13 +829,17 @@ export default function App() {
     }
 
     const elapsedMs = now - runStartedAtRef.current;
-    const deltaMs = lastFrameAtRef.current ? now - lastFrameAtRef.current : 16;
-    const deltaSeconds = deltaMs / 1000;
     const spawnMs = getSpawnMs(elapsedMs);
     const stageWidth = stageSizeRef.current.width;
     const stageHeight = stageSizeRef.current.height;
     const floodHeight = stageSizeRef.current.floodHeight ?? BUCKET_HEIGHT;
     const compactLayout = stageSizeRef.current.compactLayout;
+    const rawDeltaMs = lastFrameAtRef.current ? now - lastFrameAtRef.current : 16;
+    const deltaMs = Math.min(
+      rawDeltaMs,
+      compactLayout ? MOBILE_MAX_DELTA_MS : DESKTOP_MAX_DELTA_MS,
+    );
+    const deltaSeconds = deltaMs / 1000;
     const bucketTop = stageHeight - BUCKET_BOTTOM_OFFSET - floodHeight;
     const bucketHitLine = compactLayout
       ? stageHeight - MOBILE_BUCKET_BOTTOM_GAP
