@@ -137,7 +137,7 @@ function getInitialStageHeight() {
 export default function App() {
   const [game, setGame] = useState(initialGame);
   const [tears, setTears] = useState([]);
-  const [soundOn, setSoundOn] = useState(false);
+  const [soundOn, setSoundOn] = useState(true);
   const [wipeCursor, setWipeCursor] = useState({
     x: 0,
     y: 0,
@@ -152,7 +152,7 @@ export default function App() {
   const missedCryRef = useRef([]);
   const gameOverSfxTemplateRef = useRef(null);
   const activeGameOverSfxRef = useRef([]);
-  const soundOnRef = useRef(false);
+  const soundOnRef = useRef(true);
   const stageRef = useRef(null);
   const floodSceneRef = useRef(null);
   const animationRef = useRef(0);
@@ -259,7 +259,19 @@ export default function App() {
     };
   }, []);
 
-  useEffect(() => {
+  function stopAmbientTracks() {
+    if (welcomeMusicRef.current) {
+      welcomeMusicRef.current.pause();
+      welcomeMusicRef.current.currentTime = 0;
+    }
+
+    if (gameOverMusicRef.current) {
+      gameOverMusicRef.current.pause();
+      gameOverMusicRef.current.currentTime = 0;
+    }
+  }
+
+  function syncAmbientTrack(status, restart = false) {
     const welcomeTrack = welcomeMusicRef.current;
     const gameOverTrack = gameOverMusicRef.current;
 
@@ -267,29 +279,66 @@ export default function App() {
       return;
     }
 
-    if (soundOn && game.status === "idle") {
+    if (!soundOnRef.current) {
+      stopAmbientTracks();
+      return;
+    }
+
+    if (status === "idle") {
       gameOverTrack.pause();
       gameOverTrack.currentTime = 0;
-      welcomeTrack.play().catch(() => {
-        setSoundOn(false);
-      });
+
+      if (restart) {
+        welcomeTrack.currentTime = 0;
+      }
+
+      if (welcomeTrack.paused) {
+        welcomeTrack.play().catch(() => {});
+      }
       return;
     }
 
-    if (soundOn && game.status === "gameover") {
+    if (status === "gameover") {
       welcomeTrack.pause();
       welcomeTrack.currentTime = 0;
-      gameOverTrack.play().catch(() => {
-        setSoundOn(false);
-      });
+
+      if (restart) {
+        gameOverTrack.currentTime = 0;
+      }
+
+      if (gameOverTrack.paused) {
+        gameOverTrack.play().catch(() => {});
+      }
       return;
     }
 
-    welcomeTrack.pause();
-    welcomeTrack.currentTime = 0;
-    gameOverTrack.pause();
-    gameOverTrack.currentTime = 0;
+    stopAmbientTracks();
+  }
+
+  useEffect(() => {
+    if (!soundOn || (game.status !== "idle" && game.status !== "gameover")) {
+      return;
+    }
+
+    function unlockAmbientAudio() {
+      getAudioNodes();
+      syncAmbientTrack(game.status);
+    }
+
+    window.addEventListener("pointerdown", unlockAmbientAudio);
+    window.addEventListener("keydown", unlockAmbientAudio);
+    window.addEventListener("touchstart", unlockAmbientAudio, { passive: true });
+
+    return () => {
+      window.removeEventListener("pointerdown", unlockAmbientAudio);
+      window.removeEventListener("keydown", unlockAmbientAudio);
+      window.removeEventListener("touchstart", unlockAmbientAudio);
+    };
   }, [soundOn, game.status]);
+
+  useEffect(() => {
+    syncAmbientTrack(game.status);
+  }, [game.status, soundOn]);
 
   useEffect(() => {
     function measureStage() {
@@ -492,9 +541,8 @@ export default function App() {
 
       if (next) {
         getAudioNodes();
-        if (statusRef.current === "idle" && welcomeMusicRef.current) {
-          welcomeMusicRef.current.currentTime = 0;
-          welcomeMusicRef.current.play().catch(() => {});
+        if (statusRef.current === "idle" || statusRef.current === "gameover") {
+          syncAmbientTrack(statusRef.current, true);
         } else {
           primeAudioOnUnlock(true);
         }
@@ -503,15 +551,7 @@ export default function App() {
           playGameOverSound();
         }
       } else {
-        if (welcomeMusicRef.current) {
-          welcomeMusicRef.current.pause();
-          welcomeMusicRef.current.currentTime = 0;
-        }
-
-        if (gameOverMusicRef.current) {
-          gameOverMusicRef.current.pause();
-          gameOverMusicRef.current.currentTime = 0;
-        }
+        stopAmbientTracks();
       }
 
       return next;
@@ -778,7 +818,9 @@ export default function App() {
 
         <section className="intro-panel">
           <div className="intro-copy">
-            <h1 className="intro-title">Iyak! </h1>
+            <h1 className="intro-title">
+              SENA<span>TEARS</span>{" "}
+            </h1>
             <p className="eyebrow">How To Play</p>
             <p className="intro-lead" style={{ marginTop: -25 }}>
               Sen. P’s tears are falling fast! Grab the Kumusta Handkerchief and
