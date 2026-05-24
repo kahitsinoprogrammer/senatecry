@@ -10,7 +10,7 @@ import wipeDropSfx from "./assets/wipe-drop.mp3";
 import missedCrySfx from "./assets/missed-cry.mp3";
 import gameOverSfx from "./assets/game-over.mp3";
 
-const BUCKET_LIMIT = 8;
+const BUCKET_LIMIT = 3;
 const BUCKET_HEIGHT = 136;
 const BUCKET_BOTTOM_OFFSET = 0;
 const MOBILE_BUCKET_BOTTOM_GAP = 18;
@@ -418,9 +418,25 @@ export default function App() {
     }
 
     measureStage();
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => {
+            measureStage();
+          })
+        : null;
+
+    if (resizeObserver && stageRef.current) {
+      resizeObserver.observe(stageRef.current);
+    }
+
+    if (resizeObserver && floodSceneRef.current) {
+      resizeObserver.observe(floodSceneRef.current);
+    }
+
     window.addEventListener("resize", measureStage);
 
     return () => {
+      resizeObserver?.disconnect();
       window.removeEventListener("resize", measureStage);
       window.cancelAnimationFrame(animationRef.current);
     };
