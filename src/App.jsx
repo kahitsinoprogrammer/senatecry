@@ -149,8 +149,7 @@ export default function App() {
   const welcomeMusicRef = useRef(null);
   const wipeSfxRef = useRef([]);
   const missedCryRef = useRef([]);
-  const gameOverSfxTemplateRef = useRef(null);
-  const activeGameOverSfxRef = useRef([]);
+  const gameOverSfxRef = useRef(null);
   const activeEffectRef = useRef({ kind: null, audio: null });
   const soundOnRef = useRef(false);
   const pendingWelcomeUnlockRef = useRef(false);
@@ -247,14 +246,12 @@ export default function App() {
 
     audio.preload = "auto";
     audio.volume = 0.6;
-    gameOverSfxTemplateRef.current = audio;
+    audio.load();
+    gameOverSfxRef.current = audio;
 
     return () => {
-      activeGameOverSfxRef.current.forEach((audio) => {
-        audio.pause();
-      });
-      activeGameOverSfxRef.current = [];
-      gameOverSfxTemplateRef.current = null;
+      audio.pause();
+      gameOverSfxRef.current = null;
     };
   }, []);
 
@@ -399,21 +396,14 @@ export default function App() {
     [...(wipeSfxRef.current ?? []), ...(missedCryRef.current ?? [])].forEach(
       stopAudioInstance,
     );
-    activeGameOverSfxRef.current.forEach(stopAudioInstance);
-    activeGameOverSfxRef.current = [];
+    stopAudioInstance(gameOverSfxRef.current);
     activeEffectRef.current = {
       kind: null,
       audio: null,
     };
   }
 
-  function finishEffectPlayback(audio, kind) {
-    if (kind === "gameover") {
-      activeGameOverSfxRef.current = activeGameOverSfxRef.current.filter(
-        (item) => item !== audio,
-      );
-    }
-
+  function finishEffectPlayback(audio) {
     clearActiveEffect(audio);
   }
 
@@ -425,10 +415,10 @@ export default function App() {
     activeEffectRef.current = { kind, audio };
     audio.currentTime = 0;
     audio.onended = () => {
-      finishEffectPlayback(audio, kind);
+      finishEffectPlayback(audio);
     };
     audio.play().catch(() => {
-      finishEffectPlayback(audio, kind);
+      finishEffectPlayback(audio);
     });
   }
 
@@ -550,7 +540,11 @@ export default function App() {
 
   function primeAudioOnUnlock(includeGameplay = false) {
     const allSounds = includeGameplay
-      ? [...(wipeSfxRef.current ?? [])].filter(Boolean)
+      ? [
+          wipeSfxRef.current?.[0],
+          missedCryRef.current?.[0],
+          gameOverSfxRef.current,
+        ].filter(Boolean)
       : [welcomeMusicRef.current].filter(Boolean);
 
     allSounds.forEach((audio) => {
@@ -591,7 +585,7 @@ export default function App() {
   }
 
   function playGameOverSound({ interruptAll = false } = {}) {
-    if (!gameOverSfxTemplateRef.current || !soundOnRef.current) {
+    if (!gameOverSfxRef.current || !soundOnRef.current) {
       return;
     }
 
@@ -601,11 +595,7 @@ export default function App() {
       return;
     }
 
-    const oneShot = gameOverSfxTemplateRef.current.cloneNode(true);
-
-    oneShot.volume = 0.6;
-    activeGameOverSfxRef.current.push(oneShot);
-    beginEffectPlayback("gameover", oneShot);
+    beginEffectPlayback("gameover", gameOverSfxRef.current);
   }
 
   function enableSound({ restartWelcome = false } = {}) {
